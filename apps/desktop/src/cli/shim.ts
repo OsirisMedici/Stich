@@ -24,7 +24,7 @@ import { endpointUrl, launchTarget, readAuth, type McpAuth, type ShimEnv } from 
 
 /// The stdio face of the shim: a real MCP server, not a byte pipe. Its
 /// catalog is `synthetic ∪ (app reachable ? real catalog : ∅)` — the two
-/// synthetic tools are ALWAYS present, so an agent can discover WeftCut and
+/// synthetic tools are ALWAYS present, so an agent can discover Stich and
 /// bring it up even when nothing is listening yet, and `tools/list_changed`
 /// fires on every bridge transition so the same session upgrades (and
 /// downgrades) in place.
@@ -33,16 +33,16 @@ const SYNTHETIC_TOOLS: Tool[] = [
   {
     name: 'weftcut_status',
     description:
-      'Report whether the WeftCut desktop app is currently running and reachable, and which ' +
+      'Report whether the Stich desktop app is currently running and reachable, and which ' +
       'project it has open. Returns the endpoint state and what to do next when it is not running. ' +
-      'Costs nothing; call this first when WeftCut tools appear to be missing or failing.',
+      'Costs nothing; call this first when Stich tools appear to be missing or failing.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   },
   {
     name: 'launch_weftcut',
     description:
-      'Launch the WeftCut desktop app (opens its GUI window on the user’s machine) and ' +
-      'wait until its MCP endpoint is reachable. On success the full WeftCut tool catalog ' +
+      'Launch the Stich desktop app (opens its GUI window on the user’s machine) and ' +
+      'wait until its MCP endpoint is reachable. On success the full Stich tool catalog ' +
       'becomes available in this session automatically (tools/list_changed). Safe to call ' +
       'when already running — reports that instead of launching twice. Use after ' +
       'weftcut_status says the app is not running.',
@@ -94,7 +94,7 @@ export function createShim(opts: ShimOptions): Shim {
   const launchPollMs = opts.launchPollMs ?? 1_000
 
   const server = new Server(
-    { name: 'weftcut-mcp', version: opts.version ?? '0.0.0-dev' },
+    { name: 'stich-mcp', version: opts.version ?? '0.0.0-dev' },
     {
       capabilities: {
         tools: { listChanged: true },
@@ -137,14 +137,14 @@ export function createShim(opts: ShimOptions): Shim {
     if (!auth) {
       return new McpError(
         ErrorCode.InternalError,
-        `WeftCut has never been launched on this machine (no mcp_auth.json under ${userDataDir}). ` +
-          'Ask the user to open WeftCut once so it creates its MCP endpoint, then call weftcut_status.',
+        `Stich has never been launched on this machine (no mcp_auth.json under ${userDataDir}). ` +
+          'Ask the user to open Stich once so it creates its MCP endpoint, then call weftcut_status.',
       )
     }
     return new McpError(
       ErrorCode.InternalError,
-      `WeftCut is not running (nothing answering at ${endpointUrl(auth)}). ` +
-        'Call the launch_weftcut tool to start it, or ask the user to open WeftCut; ' +
+      `Stich is not running (nothing answering at ${endpointUrl(auth)}). ` +
+        'Call the launch_weftcut tool to start it, or ask the user to open Stich; ' +
         'the full tool catalog appears in this session automatically once the app is up.',
     )
   }
@@ -171,7 +171,7 @@ export function createShim(opts: ShimOptions): Shim {
       const auth = readAuthFn()
       return text(
         [
-          `WeftCut is running${v ? ` (${v.name} ${v.version})` : ''}.`,
+          `Stich is running${v ? ` (${v.name} ${v.version})` : ''}.`,
           auth ? `Endpoint: ${endpointUrl(auth)}` : '',
           await projectLine(),
           'The full tool catalog is available in this session.',
@@ -184,16 +184,16 @@ export function createShim(opts: ShimOptions): Shim {
     if (!auth) {
       return text(
         [
-          'WeftCut is not running, and has never been launched on this machine ' +
+          'Stich is not running, and has never been launched on this machine ' +
             `(no mcp_auth.json under ${userDataDir}).`,
-          'Ask the user to open WeftCut once so it creates its MCP endpoint, then call weftcut_status again.',
+          'Ask the user to open Stich once so it creates its MCP endpoint, then call weftcut_status again.',
         ].join('\n'),
       )
     }
     return text(
       [
-        `WeftCut is not running (nothing answering at ${endpointUrl(auth)}).`,
-        'Call launch_weftcut to start it, or ask the user to open WeftCut. ' +
+        `Stich is not running (nothing answering at ${endpointUrl(auth)}).`,
+        'Call launch_weftcut to start it, or ask the user to open Stich. ' +
           'The full tool catalog appears automatically once the app is up.',
       ].join('\n'),
     )
@@ -201,34 +201,34 @@ export function createShim(opts: ShimOptions): Shim {
 
   async function launchResult(): Promise<ReturnType<typeof text>> {
     if ((await bridge.ensureUp()) === 'up') {
-      return text('WeftCut is already running — the full tool catalog is available.')
+      return text('Stich is already running — the full tool catalog is available.')
     }
     const target = launchTarget(se)
     if (!target.launchable) {
       return text(
         'This shim is running under a plain Node interpreter (dev), so it does not know the ' +
-          'WeftCut app binary to launch. Start the app manually (npm run dev), or set the ' +
-          'WEFTCUT_APP environment variable to a launchable WeftCut executable.',
+          'Stich app binary to launch. Start the app manually (npm run dev), or set the ' +
+          'WEFTCUT_APP environment variable to a launchable Stich executable.',
         true,
       )
     }
     try {
       spawnApp(target.path)
     } catch (e) {
-      return text(`Failed to launch WeftCut (${target.path}): ${e instanceof Error ? e.message : String(e)}`, true)
+      return text(`Failed to launch Stich (${target.path}): ${e instanceof Error ? e.message : String(e)}`, true)
     }
     const deadline = Date.now() + launchTimeoutMs
     while (Date.now() < deadline) {
       await sleep(launchPollMs)
       if ((await bridge.ensureUp()) === 'up') {
         return text(
-          'WeftCut launched and its MCP endpoint is up. The full tool catalog is now available ' +
+          'Stich launched and its MCP endpoint is up. The full tool catalog is now available ' +
             'in this session (tools/list_changed was sent).',
         )
       }
     }
     return text(
-      `WeftCut was launched (${target.path}) but its MCP endpoint did not come up within ` +
+      `Stich was launched (${target.path}) but its MCP endpoint did not come up within ` +
         `${Math.round(launchTimeoutMs / 1000)}s. The app may still be starting — call weftcut_status to re-check.`,
       true,
     )

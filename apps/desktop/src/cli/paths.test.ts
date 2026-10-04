@@ -49,15 +49,15 @@ describe('resolveUserDataDir', () => {
   it('falls back to the platform default when nothing is discoverable', () => {
     const appData = tmpDir()
     const resolved = resolveUserDataDir(se({ env: { APPDATA: appData } }))
-    expect(resolved).toBe(path.join(appData, 'WeftCut'))
+    expect(resolved).toBe(path.join(appData, 'Stich'))
   })
 
-  it('prefers whichever default candidate actually holds mcp_auth.json (dev nested name)', () => {
+  it('does not reuse the official development profile authentication', () => {
     const appData = tmpDir()
     const dev = path.join(appData, '@weftcut', 'desktop')
     fs.mkdirSync(dev, { recursive: true })
     fs.writeFileSync(path.join(dev, 'mcp_auth.json'), '{"token":"t","port":1}')
-    expect(defaultUserDataDir(se({ env: { APPDATA: appData } }))).toBe(dev)
+    expect(defaultUserDataDir(se({ env: { APPDATA: appData } }))).toBe(path.join(appData, 'Stich'))
   })
 })
 
@@ -113,8 +113,8 @@ describe('clientConfig', () => {
 
   it('round-trips through JSON with Windows backslashes intact', () => {
     const parsed = JSON.parse(clientConfigJson(se(), 'C:\\ud')) as {
-      mcpServers: { weftcut: { command: string } }
+      mcpServers: { stich: { command: string } }
     }
-    expect(parsed.mcpServers.weftcut.command).toBe('C:\\Program Files\\WeftCut\\WeftCut.exe')
+    expect(parsed.mcpServers.stich.command).toBe('C:\\Program Files\\WeftCut\\WeftCut.exe')
   })
 })

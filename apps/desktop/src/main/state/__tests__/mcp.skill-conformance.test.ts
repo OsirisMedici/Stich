@@ -1,7 +1,7 @@
 // apps/desktop/src/main/state/__tests__/mcp.skill-conformance.test.ts
 // Anti-drift gate for the shipped agent-skill sources.
 //
-// The skill bundle (repo-root skills/weftcut/ + docs/motif-authoring.md, staged
+// The skill bundle (repo-root skills/stich/ + docs/motif-authoring.md, staged
 // by scripts/build-skills.mjs) name-drops MCP tools, resources, and prompts in
 // backticks. Those files ship to end users' agents, so a rename that leaves a
 // stale name behind teaches every connected agent to call something that no
@@ -25,7 +25,7 @@ import { HOST_RESOURCE_DEFS } from '../../mcp/hostResources'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../../..')
 const SKILL_SOURCES = [
-  path.join(repoRoot, 'skills/weftcut/SKILL.md'),
+  path.join(repoRoot, 'skills/stich/SKILL.md'),
   path.join(repoRoot, 'docs/motif-authoring.md'),
 ]
 

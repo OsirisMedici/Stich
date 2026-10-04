@@ -1,8 +1,8 @@
 {
   "name": "@weftcut/desktop",
-  "productName": "WeftCut",
+  "productName": "Stich",
   "version": "0.3.0",
-  "description": "WeftCut video editor desktop app",
+  "description": "Stich video editor, a private customization of WeftCut",
   "homepage": "https://github.com/WeftCut/WeftCut",
   "author": {
     "name": "UncleChair",
