@@ -1,7 +1,7 @@
 // Branding-only Mac builds may reuse the unchanged native bits of WeftCut 0.3.0.
 // For native source changes, use the normal bootstrap/compiler instead.
 import { execFileSync } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs'
+import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { extractFile } from '@electron/asar'
 
@@ -19,7 +19,7 @@ for (const [moduleName, destination] of [['core','native'], ['native-decode','na
  const target = path.join(desktop,destination)
  mkdirSync(target,{recursive:true})
  if(!existsSync(path.join(target,'index.d.ts'))) throw new Error('Restore the matching generated index.d.ts from the VPS or compile the native component first. Release bundles omit development types.')
- for(const file of readdirSync(source)) if(file.endsWith('.node') || file.endsWith('.dylib')) cpSync(path.join(source,file),path.join(target,file),{dereference:true,force:true})
+ for(const file of readdirSync(source)) if(file.endsWith('.node') || file.endsWith('.dylib')) copyFileSync(path.join(source,file),path.join(target,file))
  for(const file of ['index.js']) writeFileSync(path.join(target,file),extractFile(path.join(resources,'app.asar'),`node_modules/@weftcut/${moduleName}/${file}`))
 }
 cpSync(path.join(resources,'ffmpeg'),path.join(desktop,'resources/ffmpeg/mac'),{recursive:true,filter:(p)=>path.basename(p)!=='LICENSE.txt'})
