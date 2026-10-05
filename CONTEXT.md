@@ -873,6 +873,25 @@ caption boundaries. Missing word times are estimated within the original cue;
 estimated timing remains distinguished from engine word timing.
 _Avoid_: 强制对齐 (the distinct acoustic timing operation), 文稿对齐 (as the product name)
 
+## Transcript editing
+
+**Editing transcript**:
+The recorded speech presented as editable words associated with the footage.
+Selecting words identifies a video-editing range; the transcript itself is not
+text displayed over the finished video.
+_Avoid_: caption, subtitle, script when referring to this editing document
+
+**Transcript cut**:
+The removal of a selected spoken range from the sequence, including its
+corresponding picture and sound. The original recording remains available so
+the cut can be adjusted or restored.
+_Avoid_: text correction, caption deletion
+
+**Transcript correction**:
+A correction to the written representation of recorded speech. It changes
+the transcript's wording without removing or replacing recorded speech.
+_Avoid_: transcript cut, voice replacement
+
 ## Agent activity
 
 **Agent view**:

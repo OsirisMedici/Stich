@@ -25,6 +25,11 @@ The aspiration that AI can do the work 10 to 20 times better is a hypothesis to 
 | What appears beside the chat | The full timeline editor | A preview-only review card does not satisfy the requested experience. Reuse the timeline, media pool, preview, inspector, history and export controls. |
 | How AI should interact | Canvas-style tools and possibly better tools | Tool support is part of the application design. Making buttons available in a browser alone is insufficient. |
 | How to design | Ask questions, discuss answers and iterate until satisfied | Do not silently fill in editorial, autonomy or workflow requirements and begin coding. |
+| First editing workflow | Import the main recording and trim by editing its transcription, like Osiris's described Premiere workflow | Transcript editing is the first product outcome. General creative finishing is later. |
+| Cut control | Removing words trims the video; trim controls can shorten a cut or restore a little footage | Text selection and precise timeline adjustments must remain synchronized and reversible. |
+| Project management | AI can open/create/start projects and manage/move project folders | Include project lifecycle tools. Define folder scope, identity and media-reference behavior before implementation. |
+| Journey completeness | Yes to the whole journey | Plan opening/import, playback, transcript edits, save and output handoff. The handoff format is still a question. |
+| Next person in the workflow | Another video editor receives the trimmed video and finishes editing | Optimize the first version for a useful rough-cut handoff. Do not add automatic graphics, music or captions to this scope. |
 
 These are user decisions. The technology choices below are recommendations pending feasibility evidence and discussion.
 
@@ -32,10 +37,11 @@ These are user decisions. The technology choices below are recommendations pendi
 
 1. Start Stich's local runtime and open its editor beside the Codex chat.
 2. Open or create a project. The timeline, preview and agent context identify the same project.
-3. Give Codex a task in plain language. The exact first task is still being discussed.
-4. Codex reads project state and readiness, gathers the relevant media evidence and performs the agreed work through tools.
-5. Committed changes appear in the timeline and history. Osiris can play the result, change a cut manually and continue the conversation.
-6. Save and export through the application workflow and its tools, if confirmed as part of the first end-to-end journey.
+3. Add the main recorded video to the timeline and generate its editing transcript.
+4. Read and select words, sentences or sections. Removing text removes the corresponding audio/video section and closes the cut. The expected default is immediate, undoable editing, matching the described workflow.
+5. Play around a cut and adjust its boundaries to keep more footage or shorten it. The transcript, video and timeline must stay synchronized.
+6. Ask Codex to perform project management or a specific edit. Whether it also chooses an initial rough cut is being discussed.
+7. Save the editable project and produce the agreed handoff for another video editor.
 
 The first version should not require installing an extra agent, entering a second chat interface, learning transport configuration or moving videos to a remote server. A local runtime is still necessary for native processing.
 
@@ -54,6 +60,9 @@ The first version should not require installing an extra agent, entering a secon
 | The shipped skill explicitly sends video export to the UI | `skills/stich/SKILL.md`, `docs/mcp.md` | End-to-end AI export requires a deliberate contract change. Add tools, implementation, skill guidance and checks together. |
 | Source-frame and Motif resources already exist | `src/main/mcp/hostResources.ts` | Reuse existing media reads. Source frames alone do not verify the final assembled composition. |
 | Canvas currently exposes tools in the built-in browser | Read-only inspection of the existing Canvas tab on 5 October | The requested interaction pattern works in this installed host. No Canvas content was changed. |
+| Current transcript application creates caption cues | `src/main/state/mutations/textCorrection.ts`, `mcp-commands.ts`, `src/renderer/speech/transcribeRun.ts` | Build an editing-transcript document and cut mapping. Do not represent transcript deletion as caption deletion. |
+| Linked trim and ripple operations already exist | `src/main/state/mutations/trim.ts`, `docs/mcp.md`, `src/main/state/actor.ts` | Reuse validated edit behavior where possible, with one coherent audio/video cut and history action. |
+| Transcript results distinguish timing provenance | `docs/adr/0036-pluggable-speech-backends-normalized-transcript.md`, native speech parsers | Engine-supplied word times remain estimates of acoustic boundaries. Cue-interpolated times need extra care before word cuts. |
 
 Source paths in this table are relative to `apps/desktop` unless otherwise stated. Tool availability can differ by chat, connection and page lifetime. UI clicking can be deliberate visual verification, a missing operation or an unavailable connection; it does not by itself establish which one occurred.
 
@@ -104,27 +113,29 @@ Export should become a runtime-owned job using the current compositor and native
 
 File operations need a scoped local interface. Do not expose every IPC channel or arbitrary filesystem path over HTTP. Media uses asset identities, bounded reads and range responses. Browser authentication should use its own scoped session rather than exposing the MCP bearer token. The exact launch/session mechanism is an engineering feasibility question.
 
-## Design tree and first frontier
+## Design tree and current frontier
 
 ```text
 Confirmed: this Mac first + full timeline beside chat + tools for AI
 |
-+-- First editing job? [Q1]
-|   +-- Included manual capabilities and tools
-|   +-- Representative fixture and expected result
-|   +-- AI evidence needed: audio, transcript, frames or all
++-- Transcript-driven trim of the main recording [settled]
+|   +-- Who selects removals? [Round 2, Q1]
+|   +-- Languages and writing system? [Round 2, Q2]
+|   +-- Transcription locality and quality trade-off? [Round 2, Q4]
+|   +-- Word timing, text corrections, pauses and adjustable cut boundaries
 |
-+-- Autonomy within an authorized task? [Q2]
-|   +-- Proposal/review and checkpoint behavior
-|   +-- Ambiguous decisions and manual interruptions
++-- Codex handles the complete journey [settled]
+|   +-- Open/create, import, play, save, manage project folders
+|   +-- Editorial autonomy is distinct from mechanical control [Round 2, Q1]
 |
-+-- Unacceptable editing result? [Q3]
-|   +-- Editorial rules and review checks
-|   +-- Quality and performance acceptance thresholds
++-- Rough cut goes to another video editor [settled]
+|   +-- MP4 or editable interchange? [Round 2, Q3]
+|   +-- Recipient's editing software [dependent on editable handoff]
 |
-+-- Complete journey or selected stages? [Q4]
-    +-- Import, playback, save and export coverage
-    +-- Startup, recovery and artifact handoff
++-- Baseline: 5 to 10 minute recordings [settled]
+    +-- Around 30 minutes editing own recording; around 60 minutes someone else's
+    +-- Readiness and editing-time target [needs agreement after engine sample]
+    +-- Source preservation, undo and original-project recovery
 
 After those answers
 +-- Compare architecture choices and measured feasibility
@@ -141,7 +152,39 @@ After those answers
 3. What technically correct edit would Osiris reject? Suggested starting rule: preserve meaning, deliberate pauses and complete sentences.
 4. Does managing everything include finding/importing a file, playing, editing, saving and exporting? Recommendation: cover the complete first workflow with no required manual application controls.
 
-Questions were sent together. Answers are pending. Recommendations are not user decisions.
+### Round 1 answer record
+
+Osiris described transcript editing as the core problem. After AI-supported project management and import, his main recording goes on the timeline. He reads its transcription and deletes unwanted words to trim the video, then adjusts trims more precisely. His current baseline is at most about 30 minutes for his own 5 to 10 minute recording, or roughly an hour for another person's video. The trimmed video then goes to another editor for finishing. He explicitly wants to focus on this process.
+
+He confirmed the complete AI-managed journey. He did not separately settle whether AI should choose words to delete, or provide a rejected-edit example. Do not turn that omission into authorization for automatic editorial cuts.
+
+### Round 2 frontier
+
+1. Who chooses the removals: Osiris, Codex's first cut, or both equally? Recommendation: manual transcript selection plus AI on request.
+2. Which languages and writing system? Recommendation to verify: Roman-letter Hinglish with text correction.
+3. What reaches the next editor: clean MP4, editable timeline with originals, or both? Recommendation: MP4 first, while preserving originals and the editable Stich project.
+4. May audio leave the Mac for transcription, potentially with separate cost? Recommendation: evaluate a short representative sample and keep engine selection explicit.
+
+Round 2 questions were sent together. Answers are pending. Recommendations are not user decisions.
+
+## Transcript-editing product model
+
+The editing transcript represents speech in the source recording and its surviving appearances on the timeline. It is not an overlay. Creating it must not add captions to the video.
+
+The product needs distinct actions:
+
+- **Correct text** fixes what the transcript says without changing recorded media. Replacing a misspelled name does not replace spoken audio.
+- **Cut selection** removes the selected spoken range from the current composition, with linked picture and audio kept together. Removed source remains recoverable.
+- **Adjust cut** moves either boundary after listening, retaining or removing more source. It must remain usable when recognition or timing is imperfect.
+- **Restore cut** puts removed material back and restores its transcript appearance. Undo also restores the whole edit consistently.
+
+These are proposed canonical interaction names. Their exact UI and tool contracts remain to be reviewed. The glossary records the underlying concepts, not transport details.
+
+Transcript structure must preserve source identity, word identities, original timing and timing provenance. The sequence view is a projection of surviving source ranges, not a destructively rewritten source transcript. This proposal avoids stale word offsets after many ripple cuts and allows users to restore material without transcribing again. How revisions and transcript corrections persist needs an explicit data-model decision.
+
+Technical checks must cover a word used twice, a clip split after transcription, corrected text, deleted punctuation, a pause without spoken words, a trim extended beyond a selected word and undo after the user adjusts an AI cut. Recognition success alone is insufficient: cut boundaries must sound right when auditioned.
+
+The first scope includes project lifecycle, the main recording, transcript selection, synchronized cuts, precise trim adjustment, playback, save and handoff. Creative finishing, automatic B-roll, music selection, fancy effects and collaboration are later. Existing manual timeline functionality can be reused without expanding the new implementation scope.
 
 ## Engineering questions we will answer ourselves
 
@@ -153,6 +196,10 @@ Questions were sent together. Answers are pending. Recommendations are not user 
 - What are the current project-opening identity, sequence and history contracts, and what additional revision guards are required for browser/agent concurrency?
 - How should one launcher start or reuse the local runtime, open the correct project, establish browser authentication and report readiness?
 - Which installed-host capabilities are present for WebMCP, browser graphics, audio activation and local-session persistence?
+- Where should source transcripts persist, and how does the sequence transcript map words through split, ripple and restored source ranges?
+- Which speech backend produces usable mixed-language text and word timings on this 8 GB Mac? Inspect current parsers rather than treating an older ADR as a quality guarantee.
+- Can text-cut operations reuse existing split/ripple/trim logic as one validated history action? Which overlapping tracks should move in the first workflow?
+- How do project-folder moves preserve project identity and source references, including interruption and cross-volume moves?
 
 These are source inspection and prototype tasks. Do not ask Osiris to supply repository facts.
 
@@ -166,6 +213,11 @@ These are source inspection and prototype tasks. Do not ask Osiris to supply rep
 - A representative exported MP4 is played and checked for picture, duration, sound and synchronization before delivery claims.
 - Performance is measured on this 8 GB M2 Mac with an agreed source and workload. No 10x speed claim or smooth-playback claim precedes measurement.
 - The official WeftCut installation and original video project remain separate.
+- Deleting transcript text cuts the intended source span with synchronized audio/video and one coherent undo result.
+- Correcting transcript wording does not change footage. Creating an editing transcript does not add caption overlays.
+- Trim adjustment and restore show the retained speech correctly, including after multiple ripple cuts.
+- Assess word-boundary accuracy and perceived speech continuity on representative language samples.
+- Compare total waiting, editing and handoff time against Osiris's reported baseline; choose target numbers with him before implementation acceptance.
 
 These are proposed checks, not passed acceptance results. The interview may change them.
 
@@ -173,10 +225,13 @@ These are proposed checks, not passed acceptance results. The interview may chan
 
 | Topic | Status | Recommendation or next evidence |
 | --- | --- | --- |
-| First workflow | Awaiting Q1 | Use one real end-to-end editing task to set scope. |
-| Editing autonomy | Awaiting Q2 | Avoid per-tool approval prompts for work already authorized. |
-| Editorial quality | Awaiting Q3 | Define concrete rejected examples and review criteria. |
-| Journey completeness | Awaiting Q4 | Include file handling, playback, save and export. |
+| First workflow | Settled | Transcript-driven trimming of the main spoken recording. |
+| Editing autonomy | Round 2, Q1 | Distinguish choosing cuts from carrying out commands. |
+| Languages and writing system | Round 2, Q2 | Establish the representative recognition/timing fixture. |
+| Editorial quality | Partially defined | Precise and adjustable cuts; rejected examples remain useful later. |
+| Journey completeness | Settled | Include project management, import, play, edit, save and handoff. |
+| Handoff format | Round 2, Q3 | Determines whether editor-specific interchange is included now. |
+| Transcription locality | Round 2, Q4 | Audio privacy, quality, waiting time and separate cost. |
 | Keep native runtime for first browser version | Proposed | Test reuse cost and measured memory. |
 | WebMCP plus existing server MCP | Proposed | Use common operations; decide session ownership and discovery. |
 | Browser preview transport | Unproven | Compare compatible proxy decoding against a native transport only if needed. |
