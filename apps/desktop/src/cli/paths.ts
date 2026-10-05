@@ -32,13 +32,8 @@ export function shimEnvFromProcess(): ShimEnv {
   }
 }
 
-/// Last-resort userData guess. Generated configs always carry an explicit
-/// WEFTCUT_USERDATA and the installed shim finds userData as its own
-/// grandparent, so this only serves a hand-invoked shim. Electron derives the
-/// dir from the app name, which is package.json's `productName` ("WeftCut") in
-/// dev AND packaged: electron-builder's own productName never reaches the
-/// packaged package.json, so the two modes agree only because the key is set
-/// there. The scoped-name candidate stays for profiles written before it was.
+/// Hand-invoked shims use only Stich's platform profile. Never discover the
+/// official WeftCut profile, even if its authentication file already exists.
 export function defaultUserDataDir(se: ShimEnv): string {
   const appData =
     se.platform === 'win32'
@@ -46,11 +41,8 @@ export function defaultUserDataDir(se: ShimEnv): string {
       : se.platform === 'darwin'
         ? path.join(se.homedir, 'Library', 'Application Support')
         : (se.env.XDG_CONFIG_HOME ?? path.join(se.homedir, '.config'))
-  const candidates = [path.join(appData, 'WeftCut'), path.join(appData, '@weftcut', 'desktop')]
-  for (const c of candidates) {
-    if (fs.existsSync(path.join(c, 'mcp_auth.json'))) return c
-  }
-  return candidates[0]!
+  // Never fall back to the official app's profile or authentication file.
+  return path.join(appData, 'Stich')
 }
 
 /// userData resolution order:
@@ -133,5 +125,5 @@ export function clientConfig(
 }
 
 export function clientConfigJson(se: ShimEnv, userDataDir: string): string {
-  return JSON.stringify({ mcpServers: { weftcut: clientConfig(se, userDataDir) } }, null, 2)
+  return JSON.stringify({ mcpServers: { stich: clientConfig(se, userDataDir) } }, null, 2)
 }

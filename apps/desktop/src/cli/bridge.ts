@@ -180,6 +180,6 @@ export class Bridge {
 
 export class BridgeDownError extends Error {
   constructor() {
-    super('WeftCut is not reachable')
+    super('Stich is not reachable')
   }
 }

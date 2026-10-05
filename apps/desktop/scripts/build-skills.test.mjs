@@ -6,7 +6,7 @@ import { test } from 'node:test'
 import { assertSkillLayout, assertSkillVersions, stampSkillVersion } from './build-skills-lib.mjs'
 
 const SKILL = `---
-name: weftcut
+name: stich
 description: Drive the WeftCut video editor over its MCP tools.
 ---
 
@@ -18,7 +18,7 @@ test('build:skills stamps the staged skill with the version of the app staging i
   assert.equal(
     out,
     `---
-name: weftcut
+name: stich
 description: Drive the WeftCut video editor over its MCP tools.
 metadata:
   version: '0.1.7'
@@ -43,8 +43,8 @@ test('an author-written metadata block fails loudly rather than being clobbered'
 })
 
 /// A staged bundle, minus whatever the caller leaves out.
-function bundle(t, { skills = ['weftcut'], docs = ['motif-authoring.md'], version = '0.1.7', skillFile = true } = {}) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'weftcut-skill-bundle-'))
+function bundle(t, { skills = ['stich'], docs = ['motif-authoring.md'], version = '0.1.7', skillFile = true } = {}) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'stich-skill-bundle-'))
   t.after(() => fs.rmSync(root, { recursive: true, force: true }))
   for (const skill of skills) {
     fs.mkdirSync(path.join(root, skill), { recursive: true })
@@ -56,8 +56,8 @@ function bundle(t, { skills = ['weftcut'], docs = ['motif-authoring.md'], versio
 
 test('a complete bundle passes and reports the skills it holds', t => {
   const root = bundle(t)
-  assert.deepEqual(assertSkillLayout(root), ['weftcut'])
-  assert.doesNotThrow(() => assertSkillVersions(root, ['weftcut'], '0.1.7'))
+  assert.deepEqual(assertSkillLayout(root), ['stich'])
+  assert.doesNotThrow(() => assertSkillVersions(root, ['stich'], '0.1.7'))
 })
 
 test('an empty bundle fails the build rather than shipping a panel with nothing to offer', t => {
@@ -67,8 +67,8 @@ test('an empty bundle fails the build rather than shipping a panel with nothing 
 })
 
 test('renaming the skill folder fails the build, because two other places name it literally', t => {
-  const root = bundle(t, { skills: ['weftcut-editor'] })
-  assert.throws(() => assertSkillLayout(root), /weftcut skill is missing/)
+  const root = bundle(t, { skills: ['stich-editor'] })
+  assert.throws(() => assertSkillLayout(root), /stich skill is missing/)
 })
 
 test('a skill folder without SKILL.md is not a skill any client would load', t => {
@@ -83,12 +83,12 @@ test('a disclosed doc that did not get copied fails before it can dangle on a us
 
 test('an unstamped or mismatched skill fails: a copy that cannot name its app version is the drift hazard', t => {
   const unstamped = bundle(t, { skills: [], docs: [] })
-  fs.mkdirSync(path.join(unstamped, 'weftcut'))
-  fs.writeFileSync(path.join(unstamped, 'weftcut', 'SKILL.md'), SKILL)
-  assert.throws(() => assertSkillVersions(unstamped, ['weftcut'], '0.1.7'), /carries version nothing/)
+  fs.mkdirSync(path.join(unstamped, 'stich'))
+  fs.writeFileSync(path.join(unstamped, 'stich', 'SKILL.md'), SKILL)
+  assert.throws(() => assertSkillVersions(unstamped, ['stich'], '0.1.7'), /carries version nothing/)
 
   const older = bundle(t, { version: '0.1.6' })
-  assert.throws(() => assertSkillVersions(older, ['weftcut'], '0.1.7'), /carries version 0\.1\.6/)
+  assert.throws(() => assertSkillVersions(older, ['stich'], '0.1.7'), /carries version 0\.1\.6/)
 })
 
 test('every failure names the gate that raised it, so a pack-time one is not read as a build-time one', t => {

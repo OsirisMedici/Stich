@@ -18,7 +18,7 @@ const RUST_CATALOG = readFileSync('fixtures/mcp/rust-catalog-snapshot.json', 'ut
 
 describe('initialize instructions', () => {
   it('are the head of the shipped skill, verbatim', () => {
-    const skill = readFileSync(path.join(repoRoot, 'skills/weftcut/SKILL.md'), 'utf8').replace(/\r\n/g, '\n')
+    const skill = readFileSync(path.join(repoRoot, 'skills/stich/SKILL.md'), 'utf8').replace(/\r\n/g, '\n')
     expect(skill).toContain('## In ten lines')
     expect(skill).toContain(MCP_INSTRUCTIONS)
     // The block sits ahead of the long form, where a reader lands first.
@@ -27,7 +27,7 @@ describe('initialize instructions', () => {
 
   it('stay ten lines and under a session-sized budget', () => {
     expect(MCP_INSTRUCTION_LINES.length).toBeLessThanOrEqual(10)
-    expect(MCP_INSTRUCTIONS.length).toBeLessThanOrEqual(1400)
+    expect(MCP_INSTRUCTIONS.length).toBeLessThanOrEqual(1700)
     for (const l of MCP_INSTRUCTION_LINES) expect(l.trim()).toBe(l)
   })
 
@@ -38,7 +38,7 @@ describe('initialize instructions', () => {
     const client = new Client({ name: 'instructions-test', version: '0' })
     await Promise.all([server.connect(serverT), client.connect(clientT)])
     expect(client.getInstructions()).toBe(MCP_INSTRUCTIONS)
-    expect(client.getServerVersion()).toMatchObject({ name: 'weftcut', version: '1.2.3' })
+    expect(client.getServerVersion()).toMatchObject({ name: 'stich', version: '1.2.3' })
     expect(client.getServerCapabilities()).toMatchObject({ tools: {}, resources: {}, prompts: {} })
   })
 })

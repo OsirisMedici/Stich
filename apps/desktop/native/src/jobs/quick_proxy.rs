@@ -129,15 +129,19 @@ async fn run_fast_transcode(media: &MediaItem, tmp: &Path) -> Result<()> {
         if hw {
             hwaccel::push_hwaccel_args(cmd);
         }
-        cmd.arg("-i").arg(&input).args([
+        // Proxies must keep sensor axes: timeline transforms/crops use the
+        // original dimensions and apply its portrait rotation themselves.
+        cmd.arg("-noautorotate").arg("-i").arg(&input);
+        if hw && cfg!(target_os = "macos") {
+            // Preview quality only. A failed hardware attempt retries x264
+            // through the existing runner; export masters stay unchanged.
+            cmd.args(["-c:v", "h264_videotoolbox", "-b:v", "2000k"]);
+        } else {
+            cmd.args(["-c:v", "libx264", "-preset", "ultrafast", "-crf", "30"]);
+        }
+        cmd.args([
             "-vf",
             &scale_filter,
-            "-c:v",
-            "libx264",
-            "-preset",
-            "ultrafast",
-            "-crf",
-            "30",
             "-profile:v",
             "high",
             "-level:v",
@@ -186,6 +190,27 @@ mod tests {
     use super::*;
     use crate::state::{new_id, DecodeRoute, MediaKind, MediaMetadata, VideoStreamMeta};
     use chrono::Utc;
+
+    #[tokio::test]
+    async fn portrait_proxy_preserves_source_coordinate_axes() {
+        assert!(ffmpeg_is_installed(), "This integration test requires the bundled ffmpeg on PATH");
+        let tmp = tempfile::tempdir().unwrap();
+        let base = tmp.path().join("base.mp4");
+        let input = tmp.path().join("portrait.mp4");
+        let base_output = Command::new(ffmpeg_path()).args(["-y","-v","error","-f","lavfi","-i","testsrc2=size=160x90:rate=30","-t","0.3","-c:v","libx264"]).arg(&base).output().await.unwrap();
+        assert!(base_output.status.success());
+        let rotated = Command::new(ffmpeg_path()).args(["-y","-v","error","-display_rotation","-90","-i"]).arg(&base).args(["-c","copy"]).arg(&input).output().await.unwrap();
+        assert!(rotated.status.success());
+        let mut media = video("h264","yuv420p",160,90,30,1);
+        media.path_abs = input;
+        let cache = CacheLayout::new(tmp.path().join("Cache"));
+        std::fs::create_dir_all(cache.proxies_dir()).unwrap();
+        let result = run(&cache, &media, Some(6.0)).await.unwrap();
+        let probe = Command::new(crate::ffmpeg::ffprobe_path()).args(["-v","error","-select_streams","v:0","-show_entries","stream=width,height","-of","json"]).arg(result).output().await.unwrap();
+        let info: serde_json::Value = serde_json::from_slice(&probe.stdout).unwrap();
+        assert_eq!(info["streams"][0]["width"], 160, "proxy baked rotation; source-relative crop/rotation would be applied twice");
+        assert_eq!(info["streams"][0]["height"], 90);
+    }
 
     fn video(
         codec: &str,

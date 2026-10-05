@@ -96,15 +96,17 @@ export function reconcileMediaPaths(p: Project, dir: string, join: (...parts: st
 /** Quick proxies are session-scoped preview accelerators; never trust
  *  serialized paths across launches. Null the `quick_proxy` slot of every
  *  decode route that carries one (DirectExport/Proxied — Bypass has none) and
- *  return the dropped files for the caller to delete best-effort — staying
- *  pure (no node:fs; the caller owns the filesystem). */
+ *  retain the current source-hash q5 cache for the native job to adopt from
+ *  its own cache layout. Legacy recipes are dropped best-effort. This still
+ *  never trusts a serialized preview path as a live decoder input. */
 export function clearSessionQuickProxies(p: Project): { project: Project; quickProxiesToDelete: string[] } {
   const quickProxiesToDelete: string[] = []
   const media_pool: Record<string, MediaItem> = {}
   for (const [id, item] of Object.entries(p.media_pool)) {
     const r = item.decode_route
     if ((r.route === 'direct-export' || r.route === 'proxied' || r.route === 'native-sw') && r.quick_proxy) {
-      quickProxiesToDelete.push(r.quick_proxy)
+      const basename = r.quick_proxy.replaceAll('\\', '/').split('/').at(-1)
+      if (basename !== `${item.file_hash_blake3}.quick-q5.mp4`) quickProxiesToDelete.push(r.quick_proxy)
       media_pool[id] = { ...item, decode_route: { ...r, quick_proxy: null } }
     } else media_pool[id] = item
   }

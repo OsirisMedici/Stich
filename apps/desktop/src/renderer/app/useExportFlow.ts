@@ -1,3 +1,6 @@
+import { invoke } from '../bridge/ipc'
+import { browserMode } from '../stich/browserRuntime'
+import { stichExportSettings } from '../stich/exportSettings'
 import { convertFileSrc } from "@/bridge/ipc";
 import { listen } from "@/bridge/events";
 import { join, tempDir } from "@/bridge/path";
@@ -246,6 +249,18 @@ export function useExportFlow(deps: {
     })();
   }, [exportState, t]);
 
+  const stichExportId = useRef<string | null>(null)
+  const stichExportState = useRef<ExportState | null>(null)
+  useEffect(() => { stichExportState.current = exportState }, [exportState])
+  useEffect(() => {
+    if(!stichExportId.current || browserMode) return
+    if(!exportState) {void invoke('stich_export_update',{jobId:stichExportId.current,state:{kind:'cancelled'}});stichExportId.current=null;return}
+    const {kind} = exportState
+    const state = kind === 'complete' ? {kind,payload:exportState.payload} : kind === 'error' ? {kind,detail:exportState.detail} : {kind}
+    void invoke('stich_export_update', {jobId:stichExportId.current,state})
+    if(kind==='complete' || kind==='error') stichExportId.current=null
+  },[exportState])
+
   // The audio-effect gate, wired once for both export paths (audio-only and
   // full). Everything translated is bound here; the decisions are
   // `runAudioFxGate`'s. `proj` is the summary the export ran its other gates
@@ -303,6 +318,20 @@ export function useExportFlow(deps: {
   // clear.
   const runExportWithSettings = useCallback(
     async (settings: ExportSettings, path: string, range?: { startUs: number; endUs: number }) => {
+    if (browserMode) {
+      try {
+      const job = await invoke<{id:string}>('stich_export', {path, resolutionHeight: settings.resolutionHeight})
+      setExportState({kind:'starting'})
+      const unlisten = await listen<{id:string;state:string;stage:string;result?:{outputPath:string;durationUs:number};error?:string}>('stich:job', e => {
+        if(e.payload.id !== job.id) return
+        if(e.payload.state === 'complete' && e.payload.result) {setExportState({kind:'complete',payload:e.payload.result});unlisten()}
+        else if(e.payload.state === 'error') {setExportState({kind:'error',detail:e.payload.error??'Export failed'});unlisten()}
+        else if(e.payload.state === 'cancelled') {setExportState(null);unlisten()}
+        else setExportState({kind:'preparing',labels:[e.payload.stage],onCancel:()=>void invoke('stich_cancel_job',{jobId:job.id})})
+      })
+      } catch(error) {setExportState({kind:'error',detail:String(error)})}
+      return
+    }
     // Name the run for the log mirror before any state can transition.
     exportLog.begin({ output: path, codec: settings.codec });
     // ---- No-material guard -----------------------------------------------
@@ -948,6 +977,23 @@ export function useExportFlow(deps: {
       console.error("[weftcut/export] failed to reveal exported file:", e);
     });
   }, []);
+
+  useEffect(() => {
+    if(browserMode) return
+    const request = listen<{jobId:string;outputPath:string;resolutionHeight:number|null}>('stich:export-request', e => {
+      stichExportId.current=e.payload.jobId
+      void runExportWithSettings(stichExportSettings(e.payload.resolutionHeight, useDecodeComponentStore.getState().available),e.payload.outputPath).catch(err => {
+        void invoke('stich_export_update',{jobId:e.payload.jobId,state:{kind:'error',detail:String(err)}})
+        stichExportId.current=null
+      })
+    })
+    const cancel = listen<{jobId:string}>('stich:cancel-export', e => {
+      if(stichExportId.current!==e.payload.jobId)return
+      const state=stichExportState.current
+      if(state && 'onCancel' in state) state.onCancel?.()
+    })
+    return ()=>{void request.then(f=>f());void cancel.then(f=>f())}
+  },[runExportWithSettings])
 
   return {
     exportState,

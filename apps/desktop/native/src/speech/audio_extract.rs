@@ -7,7 +7,7 @@
 //! `<cache>/transcribe-audio/<hash>.wav` (see `cache::CacheLayout`).
 //!
 //! Atomic via the shared `temp_path / promote_temp / discard_temp` triad,
-//! same as the jobs module. Acquires `jobs::ffmpeg_sem()` so cloud extracts
+//! same as the jobs module. Acquires `jobs::audio_ffmpeg_sem()` so cloud extracts
 //! compete fairly with background derivative ffmpegs rather than spawning
 //! unbounded parallelism on import-heavy moments.
 //!
@@ -69,7 +69,7 @@ pub async fn extract_audio_window(
     let in_s = us_to_seconds(in_us);
     let dur_s = us_to_seconds(out_us - in_us);
 
-    let _permit = jobs::ffmpeg_sem()
+    let _permit = jobs::audio_ffmpeg_sem()
         .acquire()
         .await
         .context("acquire ffmpeg slot for audio extract")?;

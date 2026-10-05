@@ -3,12 +3,10 @@ name: mutation
 # Mutation testing is a slow, PERIODIC quality gate — never a per-PR gate. It
 # mutates the state mutation/validation code (validate.ts + the move/trim
 # mutations, per stryker.config.mjs) and confirms the property-based test net
-# actually KILLS the mutants. Runs weekly and on manual dispatch only. A drop
+# actually KILLS the mutants. Runs on manual dispatch in Stich. A drop
 # below the break threshold (stryker.config.mjs `thresholds.break`) fails the
 # run, surfacing a real coverage regression.
 on:
-  schedule:
-    - cron: '0 6 * * 1' # Mondays 06:00 UTC
   workflow_dispatch:
 
 # Read-only: this workflow builds + runs tests, never writes repo contents.

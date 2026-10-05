@@ -106,14 +106,20 @@ export function applyTrimLayer(p: Project, id: Uuid, edge: LayerEdge, newTUs: nu
   const curEdgeT = edge === 'In' ? curStart : curEnd
 
   // Aligned set: the target + every link sibling whose MATCHING edge sits at the
-  // same t as the target's pre-trim edge.
+  // same t as the target's pre-trim edge. Imported A/V tails can differ by
+  // sub-frame padding because picture is frame-snapped and sound sample-snapped.
   const aligned: Uuid[] = [id]
   if (!escapeLink) {
     for (const sid of linkSiblingsExcluding(c, id)) {
       const sl = locateLayerIn(c, sid); if (!sl) continue
       const s = sl.layer
       const sEdgeT = edge === 'In' ? s.t_start_us : s.t_end_us
-      if (sEdgeT === curEdgeT) aligned.push(sid)
+      const avPair = (target.params.kind === 'VideoClip' && s.params.kind === 'Audio')
+        || (target.params.kind === 'Audio' && s.params.kind === 'VideoClip')
+      const videoEdge = target.params.kind === 'VideoClip' ? curEdgeT : sEdgeT
+      const audioEdge = target.params.kind === 'Audio' ? curEdgeT : sEdgeT
+      const sameAvFrame = avPair && snapOnGrid(audioEdge, gridForLayerKind('VideoClip', fps)) === videoEdge
+      if (sEdgeT === curEdgeT || sameAvFrame) aligned.push(sid)
     }
     checkLinkLock(c, id, aligned)
   }
@@ -123,8 +129,8 @@ export function applyTrimLayer(p: Project, id: Uuid, edge: LayerEdge, newTUs: nu
 
   // Clamp against every aligned member: intersect their grid windows so the
   // tightest member governs. The windows are absolute times yet share one delta
-  // basis because every aligned member's matching edge sits at `curEdgeT` — that
-  // is what "aligned" means. Both `snapped` and every window end are canonical, so
+  // basis at the target edge, including A/V members with sub-frame tail padding.
+  // Both `snapped` and every window end are canonical, so
   // whichever the clamp picks keeps the moved edge on the grid.
   let lo = -INF
   let hi = INF
@@ -142,15 +148,17 @@ export function applyTrimLayer(p: Project, id: Uuid, edge: LayerEdge, newTUs: nu
   for (const mid of aligned) {
     const m = locateLayerIn(c, mid)!.layer
     const params = m.params
-    // Re-derive the delta on each member's OWN grid. Aligned members share one
-    // `curEdgeT` (that is what "aligned" means), so at the six rates where the frame
+    // Re-derive the delta from each member's own edge onto its OWN grid. A/V
+    // source-tail padding must not survive as a longer untrimmed audio clip.
+    // At the six rates where the frame
     // lattice is an exact sublattice of 48 kHz this is exactly `clamped`. It differs
     // only when a video and an audio edge coincide at 29.97 / 59.94, where the shared
     // time is a frame boundary that is NOT a sample boundary: then the audio member
     // adjusts by ≤ half a sample so its endpoint stays canonical instead of the whole
     // trim being rejected by the grid backstop. `src_*` shifts by the SAME per-member
     // delta, so content stays glued to the edge.
-    const delta = snapOnGrid(curEdgeT + clamped, gridForLayerKind(params.kind, fps)) - curEdgeT
+    const ownEdge = edge === 'In' ? m.t_start_us : m.t_end_us
+    const delta = snapOnGrid(curEdgeT + clamped, gridForLayerKind(params.kind, fps)) - ownEdge
     if (hasSourceWindow(params) || params.kind === 'Motif' || params.kind === 'ImageOverlay') {
       writeSourceWindow(params, edge === 'In' ? contentAt(params, exactTime(delta)) : sourceIn(params),
         edge === 'Out' ? addTime(sourceOut(m), multiplyTime(exactTime(delta), layerRate(params))) : sourceOut(m));

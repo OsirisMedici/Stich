@@ -99,6 +99,7 @@ export default defineConfig({
       rollupOptions: { input: {
         index: path.resolve(HERE, 'src/renderer/index.html'),
         screenPick: path.resolve(HERE, 'src/renderer/screen-pick.html'),
+        browser: path.resolve(HERE, 'src/renderer/browser.html'),
       } },
     },
     server: { port: 1420, strictPort: true },

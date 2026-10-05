@@ -17,6 +17,12 @@ function base(over: Partial<DecodeResolveInputs>): DecodeResolveInputs {
 }
 
 describe("resolveDecodeEngine — engine selection", () => {
+  it('browser uses the lightweight ready preview even when its 4K original decodes',()=>{
+    expect(resolveDecodeEngine(base({componentAvailable:false,allowProxyFallback:true,webcodecsCanDecodeOriginal:'ok',proxyReady:true,proxyUrl:'/stich/media/preview.mp4'}))).toMatchObject({source:'proxy',engine:'webcodecs',status:'ok'})
+  })
+  it('browser automatically uses a ready compatible proxy when original decoding is untested',()=>{
+    expect(resolveDecodeEngine(base({componentAvailable:false,allowProxyFallback:true,proxyReady:true,proxyUrl:'/stich/media/preview.mp4'}))).toMatchObject({source:'proxy',engine:'webcodecs',target:'/stich/media/preview.mp4',status:'ok'})
+  })
   it("auto with component present → ffmpeg on the original", () => {
     expect(resolveDecodeEngine(base({}))).toMatchObject({
       engine: "ffmpeg", source: "original", status: "ok", target: "C:/src/a.mov",

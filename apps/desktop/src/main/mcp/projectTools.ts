@@ -24,6 +24,7 @@ export async function runProjectTool(
   args: Record<string, unknown>,
 ): Promise<ServerResult> {
   const p = mcpDef(name).parseDedicated!(args)
+  if ('actor' in host && (host as TsActorHost).actor.isEditingBlocked()) throw new Error('Export is running; wait or cancel before switching projects.')
   if (host.projects.shuttingDown()) {
     return toolErrorResult({ code: 'invalid_request', message: 'WeftCut is quitting, so no project can be opened now. Nothing was changed.', data: { error: 'AppQuitting' } })
   }

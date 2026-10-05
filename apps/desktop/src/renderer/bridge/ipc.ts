@@ -51,5 +51,7 @@ export function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<
 export function convertFileSrc(filePath: string): string {
   // Electron custom protocol served by protocol.handle('weftcut-media') in main,
   // with HTTP Range support.
-  return `weftcut-media://localhost/${encodeURIComponent(filePath)}`
+  return window.location.protocol === 'http:'
+    ? `/stich/media/${encodeURIComponent(filePath)}`
+    : `weftcut-media://localhost/${encodeURIComponent(filePath)}`
 }

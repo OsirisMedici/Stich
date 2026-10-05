@@ -3,6 +3,7 @@
 // effects subsystem would be dead on the preview). We instead let PixiJS use
 // its real `new Function()` codegen and allow `'unsafe-eval'` in the packaged
 // CSP (see electron.vite.config.ts). Filters then work on WebGPU + WebGL alike.
+import { browserMode } from "./stich/browserRuntime";
 import React, { useCallback, useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { getCurrentWindow } from "@/bridge/window";
@@ -19,6 +20,7 @@ import {
 import { PerformanceMonitorWindow } from "./render/PerfHUD";
 import {
   projectOpen,
+  projectSummary,
   recentsGetReopenOnLaunch,
   recentsMostRecent,
 } from "./ipc";
@@ -184,6 +186,10 @@ function Root() {
     let cancelled = false;
     (async () => {
       try {
+        if (browserMode) {
+          const active = await projectSummary().catch(() => null);
+          if (active) { if (!cancelled) setStage("editor"); return; }
+        }
         const enabled = await recentsGetReopenOnLaunch();
         if (!enabled) {
           if (!cancelled) setStage("startup");

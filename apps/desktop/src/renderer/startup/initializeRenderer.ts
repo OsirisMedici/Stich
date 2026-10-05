@@ -1,3 +1,4 @@
+import { browserMode } from "../stich/browserRuntime";
 import { invoke } from "@/bridge/ipc";
 import { initEval } from "../eval";
 import { MOTIF_RUNTIME_SOURCE } from "../render/motifs/runtime";
@@ -52,7 +53,7 @@ const STARTUP_TASKS: readonly StartupTask[] = [
     id: "motif_capture_runtime",
     name: "Motif capture runtime",
     run: () =>
-      invoke("motif_register_runtime", { source: MOTIF_RUNTIME_SOURCE }),
+      browserMode ? Promise.resolve() : invoke("motif_register_runtime", { source: MOTIF_RUNTIME_SOURCE }),
   },
   {
     id: "motif_catalog",

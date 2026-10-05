@@ -1,3 +1,5 @@
+import { STICH_TOOL_DEFS } from '../../shared/stich.js'
+import type { StichService } from '../stich/service.js'
 import { beginModelUse } from "../model-usage";
 import { randomUUID } from 'node:crypto'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
@@ -235,7 +237,7 @@ function readOnlyTools(backend: Backend): Promise<Set<string>> {
   let p = readOnlySets.get(backend)
   if (!p) {
     const names = (rust: ReadonlyArray<{ name: string; annotations?: ToolAnnotations }>): Set<string> =>
-      new Set(mergeMcpCatalog(rust, [...MCP_TOOL_DEFS, ...MOTIF_TOOL_DEFS]).filter((t) => t.annotations?.readOnlyHint === true).map((t) => t.name))
+      new Set(mergeMcpCatalog(rust, [...MCP_TOOL_DEFS, ...MOTIF_TOOL_DEFS, ...STICH_TOOL_DEFS]).filter((t) => t.annotations?.readOnlyHint === true).map((t) => t.name))
     // A backend that throws synchronously (no catalog method at all, as some
     // test doubles have) is the same case as one whose catalog rejects.
     const attempt = Promise.resolve().then(() => rustCatalog(backend)).then((c) => names(c.tools))
@@ -662,6 +664,8 @@ export function mcpCommitObserver(getTsHost: () => TsActorHost | null): (tool: s
  *  positionals: `log` is the fourth and every one of them is optional, and each
  *  omitted seam must keep the behaviour it had before it existed. */
 export interface McpServerOptions {
+  stichService?: StichService
+  getEditorUrl?: () => string
   connectionId?: string
   /** What `initialize` reports as the server version. `startMcpHost` injects
    *  `app.getVersion()`, which is package.json's — this file stays
@@ -698,7 +702,7 @@ export function buildMcpServer(backend: Backend, opts: McpServerOptions = {}): S
   // (`app.getVersion()` in `mcp/index.ts`); a bare `electron.exe out/main`
   // dev launch reports Electron's, since there is no package.json in that path.
   const server = new Server(
-    { name: 'weftcut', version: opts.version ?? '0.0.0-dev' },
+    { name: 'stich', version: opts.version ?? '0.0.0-dev' },
     { capabilities: { tools: {}, resources: {}, prompts: {} }, instructions: MCP_INSTRUCTIONS },
   )
   // One Server per session (`mcp/index.ts`), so this closure resolves to the
@@ -726,13 +730,20 @@ export function buildMcpServer(backend: Backend, opts: McpServerOptions = {}): S
   // tool logged with nothing to remember. See `docs/status-log.md`.
   server.setRequestHandler(ListToolsRequestSchema, track('tools/list', async () => {
     const rust = (await rustCatalog(backend)).tools
-    return { tools: mergeMcpCatalog(rust, [...MCP_TOOL_DEFS, ...MOTIF_TOOL_DEFS]) } as unknown as ServerResult
+    return { tools: mergeMcpCatalog(rust, [...MCP_TOOL_DEFS, ...MOTIF_TOOL_DEFS, ...(opts.stichService ? STICH_TOOL_DEFS : [])]) } as unknown as ServerResult
   }, log, clientInfo))
   // A retired tool name is rewritten to the advertised one BEFORE `track`, so
   // the log row, the activity service's read/write split and the dispatcher all
   // read the same single name (`toolAliases.ts`).
-  const callTool = track('tools/call', async (req: CallToolRequest) =>
-    handleCallTool(backend, getTsHost, req.params.name, (req.params.arguments ?? {}) as Record<string, unknown>, getPreferredEngine, getVlm, peaksPathFor, clientInfo()?.name),
+  const callTool = track('tools/call', async (req: CallToolRequest) => {
+    if (STICH_TOOL_DEFS.some(t => t.name === req.params.name) && opts.stichService) {
+      try {
+        const value = req.params.name === 'open_stich_editor' ? {url: opts.getEditorUrl?.()} : await opts.stichService.run(req.params.name, (req.params.arguments ?? {}) as Record<string, unknown>)
+        return {content:[{type:'text',text:JSON.stringify(value)}], structuredContent: value && typeof value === 'object' ? value : {value}} as ServerResult
+      } catch(e) { return {isError:true,content:[{type:'text',text:e instanceof Error?e.message:String(e)}]} as ServerResult }
+    }
+    return handleCallTool(backend, getTsHost, req.params.name, (req.params.arguments ?? {}) as Record<string, unknown>, getPreferredEngine, getVlm, peaksPathFor, clientInfo()?.name)
+  },
   log, clientInfo)
   server.setRequestHandler(CallToolRequestSchema, (req: CallToolRequest, extra: unknown) =>
     callTool(withCanonicalToolName(req), extra))

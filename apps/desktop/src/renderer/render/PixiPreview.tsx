@@ -6,6 +6,7 @@
 // Plan: docs/render.md
 
 import { useCropEditingStore } from '../state/cropEditingStore';
+import { browserMode } from '../stich/browserRuntime';
 import {
   type CSSProperties,
   forwardRef,
@@ -392,6 +393,7 @@ export const PixiPreview = forwardRef<PixiPreviewHandle, Props>(function PixiPre
         const r = resolveDecodeEngine({
           setting,
           componentAvailable,
+          allowProxyFallback: browserMode,
           // Gate on availability: intent true but no proxy on disk keeps the
           // original decoding until a build lands (then the swap key flips).
           useProxySource: proxyIntent(mediaId) && qp !== null,

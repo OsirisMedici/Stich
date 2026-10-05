@@ -1,3 +1,7 @@
+import { handleCallTool, rustCatalog } from './mcp/server.js'
+import { MCP_TOOL_DEFS } from './state/mcp-commands.js'
+import { mergeMcpCatalog } from './mcp/mcpCatalog.js'
+import { createStichService, type StichService } from './stich/service.js'
 import path from 'node:path'
 import { sourceSignature } from './state/mutations/textCorrection.js'
 import { locateLayer } from './state/mutations/helpers.js'
@@ -12,7 +16,6 @@ import { MotifCovers } from './motif/covers.js'
 import { builtinMotifs, getMotifSource, motifSourceFiles } from './motif/authoring.js'
 import { motifContentHash } from './motif/contentHash.js'
 import { loadAllKeys, setKey, clearKey } from './keys.js'
-import electronUpdater from 'electron-updater'
 import { createUpdates } from './updates.js'
 import { mediaMimeForExt } from './mediaMime.js'
 import { VLM_ENDPOINT_KEY_TAG } from '../shared/vlm-config.js'
@@ -89,6 +92,7 @@ let mainWindow: BrowserWindow | null = null
 /// especially visible in e2e, which launches and closes the app rapidly. No-op
 /// once the window (or its webContents) is gone.
 function emitToRenderer(event: string, payload: unknown): void {
+  mcpHostRef?.emitBrowser(event, payload)
   const w = mainWindow
   if (!w || w.isDestroyed()) return
   const wc = w.webContents
@@ -99,6 +103,7 @@ function emitToRenderer(event: string, payload: unknown): void {
 // (which taps `mcp:change`) is constructed in the `new Backend(...)` call
 // BEFORE the host exists. Hold it module-scoped and set it right after
 // `startMcpHost` resolves.
+let stichService: StichService | null = null
 let mcpHostRef: import('./mcp/index.js').McpHost | null = null
 let tsHost: import('./state/ts-actor-host.js').TsActorHost | null = null
 // Audio-effect bake orchestrator (ADR 0063). Module-scoped for the same reason
@@ -119,6 +124,10 @@ let windowGeometryStore: import('./windowGeometry.js').WindowGeometryStore | nul
 // in-flight transfer (its partial stays; the persisted queue resumes it next boot).
 let contentQueue: ContentQueue | null = null
 
+if (!app.isPackaged && process.env.STICH_DEV_PROFILE) {
+  fs.mkdirSync(process.env.STICH_DEV_PROFILE, {recursive:true})
+  app.setPath('userData', process.env.STICH_DEV_PROFILE)
+}
 const isDev = !!process.env['ELECTRON_RENDERER_URL']
 
 // App-level startup notices the renderer PULLS on mount via the `app:notices`
@@ -354,7 +363,7 @@ function isElevatedWindows(): Promise<boolean> {
   })
 }
 
-/// One-shot startup notice: when WeftCut runs elevated on Windows, Windows UIPI
+/// One-shot startup notice: when Stich runs elevated on Windows, Windows UIPI
 /// blocks file drag-drop from the (Medium-integrity) Explorer into this
 /// (High-integrity) process — the drag never reaches the renderer, so drop-import
 /// silently dies. Surface it instead of leaving a confusing no-op. The dialog is
@@ -372,8 +381,8 @@ async function warnIfElevatedWindows(win: BrowserWindow): Promise<void> {
     title: zh ? '正在以管理员身份运行' : 'Running as administrator',
     message: zh ? '拖放导入已被禁用' : 'Drag-and-drop import is disabled',
     detail: zh
-      ? 'Windows 会阻止把文件从资源管理器拖放到以管理员身份运行的应用。要启用拖放,请以普通方式(不要"以管理员身份运行")重新启动 WeftCut。你仍可使用"导入媒体…"按钮导入。'
-      : 'Windows blocks dragging files from File Explorer into an app that runs as administrator. To enable drag-and-drop, relaunch WeftCut normally (not "Run as administrator"). You can still import with the "Import media…" button.',
+      ? 'Windows 会阻止把文件从资源管理器拖放到以管理员身份运行的应用。要启用拖放,请以普通方式(不要"以管理员身份运行")重新启动 Stich。你仍可使用"导入媒体…"按钮导入。'
+      : 'Windows blocks dragging files from File Explorer into an app that runs as administrator. To enable drag-and-drop, relaunch Stich normally (not "Run as administrator"). You can still import with the "Import media…" button.',
   })
 }
 
@@ -389,7 +398,7 @@ app.whenReady().then(async () => {
   // packaged identity on purpose (one taskbar grouping across dev and prod).
   app.setAppUserModelId(WINDOWS_APP_USER_MODEL_ID)
 
-  // WeftCut's UI is dark-only (base.css pins `color-scheme: dark`), so declare
+  // Stich's UI is dark-only (base.css pins `color-scheme: dark`), so declare
   // that to the OS instead of inheriting the system appearance. macOS draws the
   // traffic lights through the WINDOW's appearance, and its light-chrome
   // INACTIVE state is a dark grey disc meant for a light titlebar — invisible
@@ -491,7 +500,7 @@ app.whenReady().then(async () => {
         defaultId: 0,
         cancelId: 1,
         title: zh ? '数据文件夹不可用' : 'Data folder unavailable',
-        message: zh ? 'WeftCut 无法访问已配置的数据文件夹' : "WeftCut can't reach its data folder",
+        message: zh ? 'Stich 无法访问已配置的数据文件夹' : "Stich can't reach its data folder",
         detail: zh
           ? `路径:\n${unavailableRoot}\n\n该磁盘可能未挂载、被删除或权限被撤销。请重新选择一个位置,或退出。`
           : `Path:\n${unavailableRoot}\n\nThe drive may be unmounted, deleted, or its permission revoked. Choose a new location, or quit.`,
@@ -929,7 +938,26 @@ app.whenReady().then(async () => {
   // Started AFTER tsHost.start() so the actor is ready before any MCP read can run
   // (the host serves state views from the actor and injects compute slices).
   const { startMcpHost } = await import('./mcp/index.js')
+  stichService = createStichService({
+    host: () => tsHost, workspace: () => wsCache, invoke: invokeBackend,
+    transcribe: (id, language) => {
+      const layer=locateLayer(tsHost!.actor.snapshot(),id)!.layer
+      const p=layer.params as {src_in_us:number;src_out_us:number}
+      // Frame padding must not extend recognition past the source audio.
+      return invokeBackend('transcribe_clip', {layer_id:id,backend:'whisper_cpp',language,t_end_us:Math.min(layer.t_end_us,layer.t_start_us+p.src_out_us-p.src_in_us)})
+    },
+    startExport: (job, outputPath, resolutionHeight) => emitToRenderer('stich:export-request', {jobId: job.id, outputPath, resolutionHeight}),
+    emit: emitToRenderer,
+  })
   const mcpHost = await startMcpHost(backend, {
+    stichService,
+    browser: {host: () => tsHost, workspace: () => wsCache, invoke: invokeBackend,
+      tools: async () => mergeMcpCatalog((await rustCatalog(backend!)).tools, MCP_TOOL_DEFS).filter(t => !['synthesize_speech','describe_clip','correct_caption_text','transcribe_clip'].includes(t.name)),
+      callTool: async (name,args) => {
+        if(['synthesize_speech','describe_clip','correct_caption_text','transcribe_clip'].includes(name)) throw new Error('Use Stich local transcript operations for this workflow')
+        return handleCallTool(backend!, () => tsHost, name, args, getPreferredEngine, getVlm, peaksPathFor, 'Codex Browser')
+      },
+    },
     getTsHost: () => tsHost,
     getPreferredEngine,
     getVlm,
@@ -1014,7 +1042,7 @@ app.whenReady().then(async () => {
     console.log(
       `[mcp] stdio connect: ${JSON.stringify({
         mcpServers: {
-          weftcut: stdioConnectConfig({
+          stich: stdioConnectConfig({
             execPath: process.execPath,
             appImage: process.env.APPIMAGE,
             shimPath,
@@ -1029,7 +1057,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('reset_mcp_token', () => mcpHost.resetToken())
   // Re-run the startup refresh on demand, from the Agent panel. Every fault
   // that can reach a packaged user is one an outside actor can clear without
-  // touching WeftCut — a full disk emptied, an antivirus quarantine undone, a
+  // touching Stich — a full disk emptied, an antivirus quarantine undone, a
   // file handle released, a repaired install — and a recovery that cost an app
   // restart would be one the user has no reason to trust worked.
   ipcMain.handle('reinstall_skills', () => {
@@ -1058,14 +1086,8 @@ app.whenReady().then(async () => {
     platform: process.platform,
     arch: process.arch,
   }))
-  // Unpackaged dev/E2E runs never contact the release provider, and neither
-  // does macOS: its build is ad-hoc signed (electron-builder.yml §mac), and
-  // Squirrel.Mac installs only an update whose signature satisfies the running
-  // app's designated requirement — for ad-hoc that is this build's own code
-  // hash, so no later build can. The Help dialog says so and links the releases
-  // page.
-  const updates = createUpdates(app.isPackaged && process.platform !== 'darwin'
-    ? electronUpdater.autoUpdater : null)
+  // Stich releases are built privately; upstream installers must never replace this app.
+  const updates = createUpdates(null) // Private builds never install upstream releases.
   ipcMain.handle('updates:status', () => updates.status())
   ipcMain.handle('updates:check', () => {
     void updates.check()
@@ -1160,7 +1182,9 @@ app.whenReady().then(async () => {
     },
   })
   await motifCovers.prune([...motifBuiltins.map(m => m.id), ...motifStore.publishedIds(), ...motifStore.listDraftIds()])
-  ipcMain.handle('backend:invoke', async (_e, { channel, args }) => {
+  async function invokeBackend(channel: string, args: Record<string, any> = {}): Promise<unknown> {
+    if (channel.startsWith('stich_')) return stichService!.run(channel, args)
+    if (tsHost?.actor.isEditingBlocked() && ['project_open','project_close','project_new_workspace','new_workspace','project_save_as'].includes(channel)) throw new Error('Export is running; wait or cancel before switching projects.')
     if (channel === 'motif_get_cover') return motifCovers.get(args.id, args.contentHash)
     if (channel === 'motif_read_cached_frame') return motifFrames.read(args.hash, args.frame)
     if (channel === 'motif_has_cached_frame') return motifFrames.has(args.hash, args.frame)
@@ -1206,7 +1230,7 @@ app.whenReady().then(async () => {
     if (channel === 'models_unselect') { models!.unselect((args as { family: ModelFamily }).family); return null }
     if (channel === 'models_clear_downloads') { models!.clearDownloads((args as { id: string }).id); return null }
     if (channel === 'models_list') return models!.view()
-    if (channel === 'models_use') { models!.use(args as ModelUseRequest); return null }
+    if (channel === 'models_use') { models!.use(args as unknown as ModelUseRequest); return null }
     if (channel === 'models_cancel') { models!.cancel((args as { id: string }).id); return null }
     if (channel === 'models_install_components') { await models!.installComponents((args as { id: string }).id); return null }
     if (channel === 'models_remove_custom') { models!.removeCustom((args as { id: string }).id); return null }
@@ -1551,6 +1575,10 @@ app.whenReady().then(async () => {
     if (tsHost) {
       const route = (await import('./state/router.js')).routeChannel(channel)
       if (route.kind !== 'rust') {
+        if (route.kind === 'saveAs') {
+          const {copyTranscriptArtifacts} = await import('./stich/artifacts.js')
+          copyTranscriptArtifacts(tsHost.actor.snapshot(), wsCache, String(args.path))
+        }
         const result = await tsHost.handleInvoke(channel, (args ?? {}) as Record<string, unknown>)
         // A workspace swap re-keys everything the baker holds (layer ids on
         // open/new) and re-points the cache root (all three), so its map is
@@ -1563,6 +1591,14 @@ app.whenReady().then(async () => {
     }
     const json = await backend!.invoke(channel, JSON.stringify(args ?? {}))
     return JSON.parse(json)
+  }
+  ipcMain.handle('backend:invoke', async (event, {channel, args}) => {
+    if (channel === 'stich_export_update') {
+      if (event.sender !== mainWindow?.webContents) throw new Error('Export update must come from the local render host')
+      await stichService!.exportUpdate(args.jobId, args.state)
+      return null
+    }
+    return invokeBackend(channel, args)
   })
 
   // Native GPU-decode preview (Windows). Session lifecycle + the persistent
@@ -2442,7 +2478,7 @@ app.whenReady().then(async () => {
 // quit decision is quitIfLastUserWindowClosed (windows.ts), which explains why
 // this event cannot be trusted; a double quit is absorbed by quitFlushed below.
 // No platform test, for the same reason the gate carries none — a windowless
-// WeftCut is never a state to leave running.
+// Stich is never a state to leave running.
 app.on('window-all-closed', () => app.quit())
 
 // Flush the TS actor's debounced autosave before the process exits — an edit made

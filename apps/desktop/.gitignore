@@ -32,6 +32,7 @@ resources/ffmpeg-lgpl/
 
 # electron-builder output (transient build artifacts)
 release/
+release-mvp/
 
 # electron-builder buildResources: the root .gitignore ignores all build/ dirs,
 # but committed icon source assets live here. Re-include just those.

@@ -192,7 +192,7 @@ impl CacheLayout {
     /// tags asserted with the mp4 `colr` atom written so proxy decodes aren't
     /// misread as bt709/limited.
     pub fn quick_proxy(&self, hash: &str) -> PathBuf {
-        self.proxies_dir().join(format!("{hash}.quick-q4.mp4"))
+        self.proxies_dir().join(format!("{hash}.quick-q5.mp4"))
     }
 
     /// Per-media thumbnail directory; individual thumbnails sit inside as
@@ -517,7 +517,7 @@ mod tests {
         );
         assert_eq!(
             layout.quick_proxy("abc"),
-            tmp.path().join("proxies").join("abc.quick-q4.mp4"),
+            tmp.path().join("proxies").join("abc.quick-q5.mp4"),
         );
         assert_eq!(
             layout.thumbnail("abc", 5),

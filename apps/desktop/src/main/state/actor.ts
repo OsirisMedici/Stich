@@ -159,6 +159,8 @@ export interface ActorHandle {
   snapshot(): Project
   /** `by` attributes this one call's commits and checkpoints to someone other
    *  than the instance actor — how an MCP hybrid's writes carry its client. */
+  setEditingBlocked(blocked: boolean): void
+  isEditingBlocked(): boolean
   dispatch(channel: string, args: Record<string, unknown>, by?: Actor): DispatchResult
   command(channel: string, wireArgs: Record<string, unknown>): DispatchResult
   replaceState(next: Project): void
@@ -190,6 +192,8 @@ export interface ActorHandle {
 }
 
 export function createActor(opts: ActorOptions): ActorHandle {
+  let editingBlocked = false
+  const blockedResult: DispatchResult = {ok:false,error:{error:'InvalidArgument',field:'project',detail:'Export in progress; editing resumes when it completes or cancels.'}}
   const idGen = opts.idGen
   const clock: Clock = opts.clock ?? (() => '<TS>')
   const actor: Actor = opts.actor ?? { kind: 'User' }
@@ -892,6 +896,7 @@ export function createActor(opts: ActorOptions): ActorHandle {
   // ── string dispatch — the op-name core that command(), mcpCall() and the unit
   //    tests all route through. ──
   function dispatch(channel: string, a: Record<string, unknown>, by?: Actor): DispatchResult {
+    if(editingBlocked && !['set_media_derivatives','set_media_workspace_paths'].includes(channel)) return blockedResult
     return by ? recordingAs(by, () => dispatchOp(channel, a)) : dispatchOp(channel, a)
   }
   function dispatchOp(channel: string, a: Record<string, unknown>): DispatchResult {
@@ -1131,6 +1136,15 @@ export function createActor(opts: ActorOptions): ActorHandle {
           return { ok: true, value: checkpoint(label) }
         }
         case 'delete_checkpoint': deleteCheckpoint(parseUuid(a.checkpoint_id, 'checkpoint_id')); return { ok: true, value: null }
+        case 'stich_transcript_metadata': {
+          const id = parseUuid(a.layer, 'layer')
+          return { ok: true, value: commit({ key: 'history.stich_transcript', text: 'Edit speech transcript' }, layerRefs([id]), { kind: 'Coarse' }, d => {
+            const found = locateLayer(d, id)
+            if (!found) throw new Error('Transcript clip no longer exists')
+            found.layer.metadata.stich_transcript = structuredClone(a.transcript)
+            return id
+          }) }
+        }
         case 'split_layer': return { ok: true, value: commit(HISTORY_SUMMARY.layerSplit, (s: { left: Uuid; right: Uuid }) => layerRefs([s.left, s.right]), { kind: 'Coarse' }, (d) => applySplitLayer(d, idGen, a.layer as Uuid, parseNum(a.at_t_us, 'at_t_us'), (a.escape_link as boolean) ?? false)) }
         // split_layer_multi — coalesced multi-split for the shot-apply hybrids:
         // split `layer` at every ascending, strictly-interior timeline time in
@@ -1519,6 +1533,7 @@ export function createActor(opts: ActorOptions): ActorHandle {
   // the gated mutation core. Mechanical channels delegate to dispatch() after
   // arg parsing; rich channels are handled inline below.
   function command(channel: string, wireArgs: Record<string, unknown>): DispatchResult {
+    if(editingBlocked) return blockedResult
     const mech = parseMechanical(channel, wireArgs)
     if (mech) return dispatch(mech.op, mech.args)
     try {
@@ -1792,6 +1807,7 @@ export function createActor(opts: ActorOptions): ActorHandle {
   }
 
   function mcpCall(name: string, argsJson: string, client?: string): McpCallResult {
+    if(editingBlocked && mcpDef(name).annotations?.readOnlyHint !== true) return {ok:false,error:{code:'invalid_request',message:'Export in progress; wait or cancel before editing.'}}
     return recordingAs(mcpActor(client), () => mcpCallAsAgent(name, argsJson))
   }
   function mcpCallAsAgent(name: string, argsJson: string): McpCallResult {
@@ -2300,6 +2316,8 @@ export function createActor(opts: ActorOptions): ActorHandle {
   }
 
   return {
+    setEditingBlocked(blocked) { editingBlocked=blocked },
+    isEditingBlocked() {return editingBlocked},
     snapshot: current,
     dispatch,
     command,

@@ -873,6 +873,31 @@ caption boundaries. Missing word times are estimated within the original cue;
 estimated timing remains distinguished from engine word timing.
 _Avoid_: 强制对齐 (the distinct acoustic timing operation), 文稿对齐 (as the product name)
 
+## Transcript editing
+
+**Editing transcript**:
+The recorded speech presented as editable words associated with the footage.
+Selecting words identifies a video-editing range; the transcript itself is not
+text displayed over the finished video.
+_Avoid_: caption, subtitle, script when referring to this editing document
+
+**Transcript cut**:
+The removal of a selected spoken range from the sequence, including its
+corresponding picture and sound. The original recording remains available so
+the cut can be adjusted or restored.
+_Avoid_: text correction, caption deletion
+
+**Transcript correction**:
+A correction to the written representation of recorded speech. It changes
+the transcript's wording without removing or replacing recorded speech.
+_Avoid_: transcript cut, voice replacement
+
+**Rough-cut handoff**:
+The trimmed recording given to another editor for finishing. Osiris also
+calls this the raw trim; it preserves the retained recording without adding
+creative finishing work.
+_Avoid_: final creative edit, original untrimmed recording
+
 ## Agent activity
 
 **Agent view**:
@@ -902,3 +927,13 @@ duration, error and actual history IDs. Reverted describes an edit's current
 effect, independently of whether its call completed or failed. The bounded
 activity stream retains running calls and does not restore from disk.
 _Avoid_: diagnostic log entry, history entry, permanent transcript
+
+**Transcript occurrence**:
+A particular appearance of recorded words in a placed clip. Reusing the same
+recorded sentence produces distinct occurrences that can be edited separately.
+_Avoid_: source word (the word in the original recording)
+
+**Roman Hindi**:
+Hindi speech written in Roman letters, preserving the spoken Hindi rather than
+translating its meaning into English.
+_Avoid_: English translation

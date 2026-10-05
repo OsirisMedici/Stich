@@ -1,11 +1,14 @@
 ---
-name: weftcut
-description: Drive the WeftCut video editor over its MCP tools. Use BEFORE calling any weftcut MCP tool — when the user wants to edit video in WeftCut (cut, trim, arrange a timeline, add captions or voiceover) or author/update a Motif (animated overlay).
+name: stich
+description: Drive the Stich video editor over its MCP tools. Use BEFORE calling any stich MCP tool — when the user wants to edit video in Stich (cut, trim, arrange a timeline, add captions or voiceover) or author/update a Motif (animated overlay).
 ---
 
-# Driving WeftCut
+# Driving Stich
 
-WeftCut is a desktop video editor; you operate it over MCP while the user
+Use only the "stich" MCP connection for this app. The separate "weftcut" connection controls the official WeftCut app and may be editing another project. Never substitute that connection or open its active project without user direction.
+
+
+Stich is a desktop video editor; you operate it over MCP while the user
 watches the same project live in the app. Every mutation you commit lands in
 their undo history and on their screen. Each tool's own description carries its
 contract, and each refusal names its cause and options — this skill covers only
@@ -16,16 +19,16 @@ what no single tool can: how a session should go.
 The server sends these as its `initialize` instructions, so a client without
 this skill reads the same etiquette; the long form follows.
 
-WeftCut is a desktop video editor; the user watches the same project live, and every edit you commit lands in their undo history.
+Stich is a desktop video editor; the user watches the same project live, and every edit you commit lands in their undo history.
 1. Read `project://tracks` (or `read_project` with view "tracks") before your first edit. Ids come from reads, never from memory.
 2. Every mutator answers with the committed record: the ids it minted, the span as it landed, `adjusted` for any grid snap. Verify from that answer before reporting.
 3. A refusal is an isError result whose text names the cause and the fix. Act on it; never retry a rejected call verbatim.
 4. Times are microseconds on the composition's frame grid: an off-grid time is snapped and echoed, a time outside its layer is refused.
 5. Call `create_checkpoint` before your first edit. For a batch (a rough cut, a pause pass, a caption track): ask the user, then `begin_agent_session`, `set_history_lock` around the batch, `dry_run` where supported, and `end_agent_session` when done, on failure too.
 6. The user or another agent may edit concurrently; when a commit fails for that reason, re-read and reapply.
-7. Export is not a tool: point the user to the app's Export UI.
+7. Stich MVP exports through `stich_export`: poll `stich_status`; completion requires a verified output file. The local runtime stays open.
 8. Project tools refuse while no project is open: `open_project` or `create_project` the one the user asked for, else ask which.
-The weftcut skill (Settings > Agent) carries the longer etiquette, the common flows and the Motif authoring contract.
+The stich skill (Settings > Agent) carries the longer etiquette, the common flows and the Motif authoring contract.
 
 ## Session etiquette
 
@@ -51,12 +54,19 @@ The weftcut skill (Settings > Agent) carries the longer etiquette, the common fl
    with `end_agent_session { force: true }` when that holder is gone.
    None of these cancels running calls or prohibits later tools. Do not infer
    that a session ended because the user returned to the editor.
-5. Errors are instructions: WeftCut errors name the cause and list concrete
+5. Errors are instructions: Stich errors name the cause and list concrete
    options. Pick one; never retry a rejected call verbatim.
 6. A commit can also fail because the user (or another agent) edited
    concurrently — re-read the resource and reapply.
-7. Export is deliberately not a tool. When the user wants a rendered file,
-   point them to the app's Export UI.
+7. Use `stich_export` for an MP4. Poll `stich_status` until complete or error; metadata verification does not prove audible/visual playback.
+
+## Browser and transcript MVP
+
+`open_stich_editor` returns a one-time localhost launch URL. Open it in Codex's in-app browser. The page's WebMCP operations and server MCP share the native project actor. Keep the full human timeline visible; opening a work session does not change the layout.
+
+Use `stich_setup_local_speech` once to install/select local Whisper Base. Select the main clip, then `stich_transcribe { layerId, language }`, with `auto`, `en` or `hi` for Hindi/Hinglish. Poll the returned job. Recognition is local, with no provider substitution. `stich_read_transcript` returns source word IDs, Roman display text, current workspace and revision. Read fresh before a change. `stich_correct_text` changes spelling only. `stich_cut_words` removes a consecutive range from one normal-speed clip and its linked audio in one undo step. Both require workspace, revision and a unique requestId. Reuse the exact request and ID only when retrying an unknown outcome.
+
+Create a checkpoint before editing an existing project. Checkpoints and undo last for the current open session; save preserves the edited project, not that history. The user chooses the editorial workflow in chat; no automatic trimming recipe is compulsory. Audition every cut and use `trim_layer` to refine edges. Preserve the recording. `stich_save_project` flushes edits; `stich_move_project` refuses an existing target. A completed export must be played before reporting it as ready to hand off. Transcription cancellation discards the result after the current local engine request finishes; it does not yet interrupt inference immediately.
 
 ## Working rhythm
 
@@ -71,7 +81,7 @@ descriptions:
 
 - Animation: `set_keyframe` creates or updates one key by time; `set_param_track`
   replaces a whole track with keys needing only time and value. Key and path-node
-  IDs are generated by WeftCut — never invent them or send them in bulk authoring
+  IDs are generated by Stich — never invent them or send them in bulk authoring
   inputs. To edit/delete one existing key, read its ID with `get_param_track`.
   When copying read records into a bulk replacement, omit IDs and read-only
   `t_local_us` and `preset_id`; preserve `time_fraction` when present, along with

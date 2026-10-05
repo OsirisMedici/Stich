@@ -110,6 +110,12 @@ pub(crate) fn ffmpeg_sem() -> &'static Semaphore {
     S.get_or_init(|| Semaphore::new(MAX_PARALLEL_FFMPEG))
 }
 
+// Playback-critical audio must not queue behind full video transcodes.
+pub(crate) fn audio_ffmpeg_sem() -> &'static Semaphore {
+    static S: OnceLock<Semaphore> = OnceLock::new();
+    S.get_or_init(|| Semaphore::new(1))
+}
+
 /// Per-media in-flight set for conform jobs. The export gate re-kicks any
 /// media whose conform cache is invalid; if the import-time job is still
 /// running, a second concurrent run would interleave writes into the SAME
@@ -374,6 +380,11 @@ pub fn enqueue_for_media(
 ) {
     match media.kind {
         MediaKind::Video => {
+            // Prepare playback audio immediately from the original. Proxy and
+            // thumbnail completion is unrelated to whether speech can play.
+            if media.metadata.audio.is_some() {
+                spawn_conform(events.clone(), log_slot.clone(), cache.clone(), media.clone());
+            }
             // Already-decided sources whose proxy (if any) is on disk only need
             // their decorations re-fanned; everything else (re-)runs the routing
             // decision — see `proxy_decision::route_needs_decision`.
@@ -458,7 +469,7 @@ fn spawn_conform(
             },
         );
 
-        let permit = ffmpeg_sem().acquire().await;
+        let permit = audio_ffmpeg_sem().acquire().await;
         if permit.is_err() {
             warn!("conform job: semaphore closed; skipping {media_id}");
             return;
@@ -1108,6 +1119,14 @@ fn emit<T: Serialize>(events: &Arc<dyn EventSink>, event: &str, payload: &T) {
 
 #[cfg(test)]
 mod tests {
+    #[tokio::test]
+    async fn audio_preparation_does_not_wait_for_video_workers() {
+        let video = ffmpeg_sem().acquire_many(2).await.unwrap();
+        let audio = tokio::time::timeout(std::time::Duration::from_millis(30), audio_ffmpeg_sem().acquire()).await;
+        drop(video);
+        assert!(audio.is_ok(), "audio is blocked by video optimization");
+    }
+
     use super::*;
 
     #[test]

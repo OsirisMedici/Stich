@@ -205,7 +205,9 @@ export function useImportReadiness(deps: {
     let cancelled = false;
     void (async () => {
       const memo = decodeProbeMemo.current;
-      const pool = useProjectStore.getState().mediaById;
+      // App's summary and the shared store arrive on separate requests. Probe
+      // this effect's actual input, rather than an older/empty store snapshot.
+      const pool = new Map((summary?.media ?? []).map(m=>[m.id,m]));
       const candidates = sourcesNeedingPreviewProbe(pool).filter(
         (m) =>
           m.available &&
@@ -218,9 +220,11 @@ export function useImportReadiness(deps: {
         let verdict: WebcodecsDecodeVerdict = "unknown";
         try {
           verdict = await classifyWebcodecsDecodability(convertFileSrc(m.path));
-        } catch {
+        } catch (error) {
+          console.warn('[stich] source preview probe failed', m.id, error)
           verdict = "unknown";
         }
+        console.info('[stich] source preview probe', m.id, verdict)
         const ok = verdict === "ok";
         // DEFINITIVE WebCodecs-unsupported original (no codec mapping /
         // isConfigSupported declines both lanes — NOT a transient stall): sticky-

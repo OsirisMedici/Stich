@@ -44,7 +44,7 @@ pub const PROXY_GOP_FRAMES: u32 = 6;
 /// High profile, `-bf 0` (PTS=DTS), short fixed GOP (`PROXY_GOP_FRAMES`), and
 /// source color tags asserted with `+write_colr` so mediabunny reads a `colr`
 /// atom. See ADR 0008, 0011, 0014.
-pub const PROXY_FORMAT_VERSION: u32 = 7;
+pub const PROXY_FORMAT_VERSION: u32 = 8;
 
 /// Output-side ffmpeg args asserting the SOURCE's ffprobe color tags on a
 /// proxy re-encode. The transcode preserves the source's actual colorimetry
@@ -105,7 +105,7 @@ pub async fn run(cache: &CacheLayout, media: &MediaItem) -> Result<PathBuf> {
         if hw {
             hwaccel::push_hwaccel_args(cmd);
         }
-        cmd.arg("-i").arg(&input).args([
+        cmd.arg("-noautorotate").arg("-i").arg(&input).args([
             "-vf",
             &scale_filter,
             "-c:v",

@@ -5,7 +5,7 @@ import { resolveEntityLabels } from '../state/history-labels'
 import type { EntityRef } from '../state/history'
 import { eachLayer } from '../state/model'
 import type { AgentActivity, AgentActivitySnapshot, AgentWorkSession } from '../../shared/agent-activity'
-import { AGENT_ACTIVITY_EVENT, AGENT_VIEW_EVENT } from '../../shared/agent-activity'
+import { AGENT_ACTIVITY_EVENT } from '../../shared/agent-activity'
 
 const CAPACITY = 1000
 interface CallContext { workspace: string; activity: AgentActivity }
@@ -191,7 +191,8 @@ export class AgentActivityService {
     ctx.activity.session_id = session.id
     this.checkpoint('checkpoint', checkpoint, `Pre-agent: ${session.reason}`)
     this.publish()
-    this.send(AGENT_VIEW_EVENT, { workspace_id: this.workspace, session_id: session.id })
+    // Stich keeps the full timeline visible during agent work.
+    // The user can still switch layouts explicitly.
     return session
   }
 

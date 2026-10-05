@@ -1,6 +1,6 @@
-appId: dev.weftcut.desktop
-productName: WeftCut
-executableName: WeftCut
+appId: com.osiris.stich
+productName: Stich
+executableName: Stich
 # OS + arch, no version: GitHub's releases/latest/download/<asset> URL then always
 # resolves to the current build, so a download page never embeds a version. An
 # exact build stays addressable through its tag (releases/download/v<version>/
@@ -9,11 +9,7 @@ executableName: WeftCut
 # Expands to WeftCut-win-x64.exe, WeftCut-linux-x86_64.AppImage,
 # WeftCut-linux-amd64.deb and WeftCut-mac-arm64.dmg; release.mjs pins that set.
 artifactName: ${productName}-${os}-${arch}.${ext}
-publish:
-  provider: github
-  owner: WeftCut
-  repo: WeftCut
-  releaseType: release
+publish: null
 # Pack-time gates, re-asserted from the packaged files rather than from what the
 # supply steps believed they staged: both ffmpeg lanes' licensing compliance, and
 # the presence of the agent skill bundle. Each refuses to let the build become a
@@ -23,6 +19,9 @@ directories:
   output: release
   buildResources: build
 files:
+  - "!release/**"
+  - "!release-mvp/**"
+  - "!native/target/**"
   - out/**
   - package.json
   - "!**/*.map"
@@ -53,6 +52,8 @@ asarUnpack:
   - "**/node_modules/@weftcut/native-decode/*.so.*"
   - "**/node_modules/@weftcut/native-decode/*.dylib"
 extraResources:
+  - from: ../../LICENSE
+    to: WeftCut-LICENSE.txt
   # The weftcut-mcp stdio shim (single self-contained bundle, built by
   # scripts/build-cli.mjs). The app copies it to <userData>/cli/ at startup —
   # THAT copy is what client configs reference (stable across upgrades, and
@@ -79,13 +80,8 @@ extraResources:
   - from: src/shared/motifs/builtin
     to: motifs/builtin
     filter: ["**/*"]
-# App icon. build/icon.png is the 1024x1024 raster master, generated from the
-# canonical brand SVG (src/renderer/public/icons/icon.svg) by `npm run
-# gen:icons`. electron-builder derives the multi-resolution Windows .ico, the
-# macOS .icns, and the Linux png set from this one master — re-run gen:icons
-# after any palette tweak to the SVG. The derived multi-resolution .ico is what
-# the exe embeds and what the Windows taskbar draws; the in-app window icon
-# (src/main/index.ts, set whenever !app.isPackaged) is the runtime backstop.
+# Stich's canonical mark is src/renderer/public/icons/icon.png.
+# npm run gen:icons creates the 1024px master; electron-builder derives ICNS/ICO.
 win:
   target: [nsis]
   icon: build/icon.png

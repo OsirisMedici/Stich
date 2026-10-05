@@ -145,6 +145,13 @@ describe('reconcileMediaPaths (mirror io/mod.rs:73 path_abs ← dir.join(path_re
 })
 
 describe('clearSessionQuickProxies', () => {
+  it('keeps a source-hash q5 cache file for native revalidation instead of rebuilding it on every open', () => {
+    const hash = 'a'.repeat(64)
+    const p = withMedia([mediaItem({file_hash_blake3:hash,decode_route:{route:'direct-export',quick_proxy:`/ws/Cache/proxies/${hash}.quick-q5.mp4`}})])
+    const out = clearSessionQuickProxies(p)
+    expect(out.project.media_pool['00000000-0000-0000-0000-0000000000aa'].decode_route).toEqual({route:'direct-export',quick_proxy:null})
+    expect(out.quickProxiesToDelete).toEqual([])
+  })
   it('nulls the route quick_proxy slot and reports the file to delete', () => {
     const p = withMedia([mediaItem({ decode_route: { route: 'direct-export', quick_proxy: '/ws/clip.quick.mp4' } })])
     const { project, quickProxiesToDelete } = clearSessionQuickProxies(p)

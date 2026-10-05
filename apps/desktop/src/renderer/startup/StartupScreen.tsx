@@ -259,7 +259,7 @@ export function StartupScreen({ onWorkspaceReady }: Props) {
           <span className="startup-logo-mark" aria-hidden="true">
             <img
               className="startup-logo"
-              src="./icons/icon.svg"
+              src="./icons/icon.png"
               alt=""
               width={44}
               height={44}

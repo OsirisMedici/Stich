@@ -1,3 +1,5 @@
+import { mountBrowserHost } from '../stich/browserHost.js'
+import type { TsActorHost } from '../state/ts-actor-host.js'
 import express from 'express'
 import { app } from 'electron'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
@@ -20,6 +22,8 @@ export interface McpInfoView {
 }
 
 export interface McpHost {
+  getEditorUrl(): string
+  emitBrowser(event: string, payload: unknown): void
   getInfo(): McpInfoView
   connectionSnapshot(): AgentConnectionSnapshot
   resetToken(): string
@@ -53,7 +57,7 @@ export interface SessionReaperOptions {
 const REAPER_DEFAULTS: Required<SessionReaperOptions> = { graceMs: 90_000, idleMs: 30 * 60_000, sweepMs: 15_000 }
 
 /** Host-level seams, forwarded verbatim to every per-session `buildMcpServer`. */
-export type McpHostOptions = McpServerOptions & { sessionReaper?: SessionReaperOptions }
+export type McpHostOptions = McpServerOptions & { sessionReaper?: SessionReaperOptions; browser?: {host():TsActorHost|null; workspace():string|null; invoke(channel:string,args:Record<string,unknown>):Promise<unknown>; tools():Promise<unknown[]>; callTool(name:string,args:Record<string,unknown>):Promise<unknown>} }
 
 export async function startMcpHost(backend: Backend, opts: McpHostOptions = {}): Promise<McpHost> {
   let auth: McpAuth = loadOrInitAuth()
@@ -95,6 +99,7 @@ export async function startMcpHost(backend: Backend, opts: McpHostOptions = {}):
 
   const appExpress = express()
   appExpress.use(express.json({ limit: '50mb' }))
+  const browserHost = opts.stichService && opts.browser ? mountBrowserHost(appExpress, {service:opts.stichService, ...opts.browser}) : null
 
   // Constant-time compare: a plain `!==` leaks timing. Not a real attack surface
   // for a 256-bit localhost token, but timingSafeEqual is the correct form.
@@ -208,7 +213,7 @@ export async function startMcpHost(backend: Backend, opts: McpHostOptions = {}):
         // of those. `Warn`, not `Error`: the request failed, the app did not.
         emitLifecycle('warn', { kind: 'System' }, 'MCP transport error', { error: detail })
       }
-      newServer = buildMcpServer(backend, { ...opts, connectionId, version })
+      newServer = buildMcpServer(backend, { ...opts, getEditorUrl: () => { if (!browserHost) throw new Error('Browser editor unavailable'); return browserHost.launch(port) }, connectionId, version })
       servers.add(newServer)
       // `getClientVersion()` is populated while the `initialize` REQUEST is
       // handled, which precedes the `notifications/initialized` that fires this
@@ -274,19 +279,11 @@ export async function startMcpHost(backend: Backend, opts: McpHostOptions = {}):
   // this row exists only because the producer-side deferred queue holds it until
   // a workspace opens (`src/main/deferredLog.ts`).
   emitLifecycle('info', { kind: 'System' }, `MCP host listening on 127.0.0.1:${port}`, { port })
-  // The connect snippet embeds the bearer token. Print it ONLY in unpackaged
-  // (dev / e2e) runs — never in a packaged build, where stdout/log capture on a
-  // shared machine could leak the token. The token is always available to the
-  // UI via the get_mcp_info IPC.
-  if (!app.isPackaged) {
-    console.log(
-      `[mcp] connect: ${JSON.stringify({
-        mcpServers: { weftcut: { url, headers: { Authorization: `Bearer ${auth.token}` } } },
-      })}`,
-    )
-  }
+  // Credentials are available through the local settings UI; never log them.
 
   return {
+    getEditorUrl(): string { if (!browserHost) throw new Error('Browser editor unavailable'); return browserHost.launch(port) },
+    emitBrowser(event: string, payload: unknown): void { browserHost?.emit(event,payload) },
     connectionSnapshot(): AgentConnectionSnapshot {
       return { available, url, connections: [...connections.values()] }
     },
@@ -314,6 +311,7 @@ export async function startMcpHost(backend: Backend, opts: McpHostOptions = {}):
     },
     async close(): Promise<void> {
       available = false
+      browserHost?.close()
       clearInterval(sweeper)
       for (const t of transports.values()) await t.close().catch(() => {})
       http.close()

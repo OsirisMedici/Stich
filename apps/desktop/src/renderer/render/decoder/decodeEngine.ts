@@ -18,6 +18,8 @@ export interface DecodeResolveInputs {
   setting: DecodeEngineSetting;
   /// FFmpeg native-decode component DLLs loaded on this machine.
   componentAvailable: boolean;
+  /** Browser runtime prefers its lightweight ready preview; original bridges startup. */
+  allowProxyFallback?: boolean;
   /// User opt-in to decode the proxy instead of the original (per media).
   /// PixiPreview feeds `proxyIntent(mediaId) && quickProxyPath(media) !==
   /// null` — the per-clip override (falling back to the project's Prefer
@@ -52,7 +54,9 @@ export interface DecodeResolution {
 }
 
 export function resolveDecodeEngine(i: DecodeResolveInputs): DecodeResolution {
-  const source: DecodeSource = i.useProxySource ? "proxy" : "original";
+  const fallback = i.allowProxyFallback && (!i.componentAvailable || !i.ffmpegUsable)
+    && i.proxyReady && i.proxyUrl !== null;
+  const source: DecodeSource = i.useProxySource || fallback ? "proxy" : "original";
 
   const done = (
     engine: DecodeEngine,

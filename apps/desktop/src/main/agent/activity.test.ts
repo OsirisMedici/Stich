@@ -30,7 +30,7 @@ describe('agent work sessions', () => {
     const again = await run('one', () => service.begin('Retry'))
     expect(again.id).toBe(first.id)
     expect(actor.listCheckpoints()).toHaveLength(1)
-    expect(send.mock.calls.filter(([event]) => event === AGENT_VIEW_EVENT)).toHaveLength(1)
+    expect(send.mock.calls.filter(([event]) => event === AGENT_VIEW_EVENT)).toHaveLength(0)
     await expect(run('two', () => service.begin('Other job'))).rejects.toThrow('AgentSessionBusy')
     expect(service.snapshot().session?.id).toBe(first.id)
     expect(service.snapshot().activities.at(-1)?.session_id).toBeNull()
@@ -46,7 +46,7 @@ describe('agent work sessions', () => {
     expect(service.snapshot().sessions[0]).toMatchObject({ id: session.id, end_reason: 'user' })
     await run('one', add)
     expect(service.snapshot().activities.at(-1)?.session_id).toBeNull()
-    expect(send.mock.calls.filter(([event]) => event === AGENT_VIEW_EVENT)).toHaveLength(1)
+    expect(send.mock.calls.filter(([event]) => event === AGENT_VIEW_EVENT)).toHaveLength(0)
   })
 
   it('does not release a different connection’s newer lock or end its work', async () => {

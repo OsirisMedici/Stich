@@ -1,3 +1,4 @@
+import { EditingTranscriptPanel } from './stich/EditingTranscriptPanel'
 import { startPreviewAudioSession } from "./render/audio/previewAudioSession";
 import { transportPlay, transportPause, transportSeek, usePlaybackStore } from "./state/playbackStore";
 import { save as saveDialog } from "@/bridge/dialog";
@@ -87,6 +88,8 @@ import {
 } from "./components/systemStatus";
 import { PickOverlayHost } from "./colorpick/PickOverlayHost";
 import { ExportSettingsDialog } from "./panels/ExportSettingsDialog";
+import { BrowserExportDialog } from './stich/BrowserExportDialog';
+import { browserMode } from './stich/browserRuntime';
 import { type PreviewSurfaceHandle } from "./preview/PreviewSurface";
 import { SearchPalette } from "./search/SearchPalette";
 
@@ -1181,6 +1184,7 @@ export function App({ onCloseProject }: AppProps) {
   return (
     <ShortcutBindingsProvider overrides={shortcutOverrides}>
     <div className="app">
+      <EditingTranscriptPanel />
       <div className="app-top-chrome">
         <AppMenuBar
           pong={pong}
@@ -1239,7 +1243,7 @@ export function App({ onCloseProject }: AppProps) {
           through the export means progress shows in the same popup and blocks
           UI interaction until the user dismisses on complete/error. */}
       {exportDialogOpen && summary && exportState == null && (
-        <ExportSettingsDialog
+        browserMode ? <BrowserExportDialog onCancel={() => setExportDialogOpen(false)} onConfirm={(settings,path)=>{void runExportWithSettings(settings,path)}} /> : <ExportSettingsDialog
           comp={rootCompositionOf(summary)}
           durationUs={rootCompositionOf(summary).duration_us}
           hasTenBitSource={summary.media.some(
