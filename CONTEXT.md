@@ -892,6 +892,12 @@ A correction to the written representation of recorded speech. It changes
 the transcript's wording without removing or replacing recorded speech.
 _Avoid_: transcript cut, voice replacement
 
+**Rough-cut handoff**:
+The trimmed recording given to another editor for finishing. Osiris also
+calls this the raw trim; it preserves the retained recording without adding
+creative finishing work.
+_Avoid_: final creative edit, original untrimmed recording
+
 ## Agent activity
 
 **Agent view**:

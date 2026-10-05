@@ -30,6 +30,10 @@ The aspiration that AI can do the work 10 to 20 times better is a hypothesis to 
 | Project management | AI can open/create/start projects and manage/move project folders | Include project lifecycle tools. Define folder scope, identity and media-reference behavior before implementation. |
 | Journey completeness | Yes to the whole journey | Plan opening/import, playback, transcript edits, save and output handoff. The handoff format is still a question. |
 | Next person in the workflow | Another video editor receives the trimmed video and finishes editing | Optimize the first version for a useful rough-cut handoff. Do not add automatic graphics, music or captions to this scope. |
+| Product cost and processing | A free tool using this Mac's resources and open-source projects | No paid transcription service, API requirement, metered processing or cloud fallback. Local recognition is mandatory. |
+| Output handoff | Only MP4 exports, a raw trimmed file | Editor-specific timeline interchange is outside the first workflow. Preserve the editable Stich project and originals locally. |
+| Speech support | Mostly English; also Hinglish and Hindi sentences | Support English and Hindi, including switching languages inside one recording. Hindi writing-system preferences are a separate decision. |
+| Human and agent relationship | A human application with tools added; both can choose and perform cuts | All agent-supported editing actions must have useful human controls. The main workflow should also be fully available to the agent. |
 
 These are user decisions. The technology choices below are recommendations pending feasibility evidence and discussion.
 
@@ -40,8 +44,8 @@ These are user decisions. The technology choices below are recommendations pendi
 3. Add the main recorded video to the timeline and generate its editing transcript.
 4. Read and select words, sentences or sections. Removing text removes the corresponding audio/video section and closes the cut. The expected default is immediate, undoable editing, matching the described workflow.
 5. Play around a cut and adjust its boundaries to keep more footage or shorten it. The transcript, video and timeline must stay synchronized.
-6. Ask Codex to perform project management or a specific edit. Whether it also chooses an initial rough cut is being discussed.
-7. Save the editable project and produce the agreed handoff for another video editor.
+6. Ask Codex to perform project management or choose and apply an editing pass. A person can perform the same edits manually and adjust what the agent did.
+7. Save the editable project and export a clean, raw-trimmed MP4 for another video editor.
 
 The first version should not require installing an extra agent, entering a second chat interface, learning transport configuration or moving videos to a remote server. A local runtime is still necessary for native processing.
 
@@ -74,7 +78,7 @@ Serve a browser build of the full editor from the local Stich runtime. Register 
 
 Both transports should expose adapters for the same application operations. They must not maintain independent timelines or duplicate business rules.
 
-Official [Site tools documentation](https://learn.chatgpt.com/docs/webmcp) describes WebMCP tools in the built-in browser, shared live-page context and support for both WebMCP and server MCP. It currently requires JavaScript registration in the top-level page; iframe tools and declarative form tools are not discovered. Site tools depend on the page remaining available and host support. The installed Canvas tab supplies a concrete compatibility example.
+Official [Site tools documentation](https://learn.chatgpt.com/docs/webmcp) describes WebMCP tools in the built-in browser, shared live-page context and support for both WebMCP and server MCP. It currently requires JavaScript registration in the top-level page; iframe tools and declarative form tools are not discovered. Site tools depend on the page remaining available and host support. The installed Canvas tab supplies a concrete compatibility example. Human controls and tool adapters call the same application operations, so an AI-specific workflow does not become a second editor.
 
 Official [Browser documentation](https://learn.chatgpt.com/docs/browser) documents local development URLs and showing the page beside chat. This route does not require modifying Codex itself.
 
@@ -119,22 +123,25 @@ File operations need a scoped local interface. Do not expose every IPC channel o
 Confirmed: this Mac first + full timeline beside chat + tools for AI
 |
 +-- Transcript-driven trim of the main recording [settled]
-|   +-- Who selects removals? [Round 2, Q1]
-|   +-- Languages and writing system? [Round 2, Q2]
-|   +-- Transcription locality and quality trade-off? [Round 2, Q4]
+|   +-- Both humans and AI choose and perform removals [settled]
+|   +-- English, Hindi and code-switching support [settled]
+|   +-- Local recognition with no paid service [settled]
+|   +-- Hindi writing system [Round 3, Q2]
+|   +-- Meaning of a default AI trimming pass [Round 3, Q1]
+|   +-- Separate correction and timing controls [Round 3, Q4]
 |   +-- Word timing, text corrections, pauses and adjustable cut boundaries
 |
 +-- Codex handles the complete journey [settled]
 |   +-- Open/create, import, play, save, manage project folders
-|   +-- Editorial autonomy is distinct from mechanical control [Round 2, Q1]
+|   +-- AI can choose edits within the requested task; manual controls remain equal
 |
 +-- Rough cut goes to another video editor [settled]
-|   +-- MP4 or editable interchange? [Round 2, Q3]
-|   +-- Recipient's editing software [dependent on editable handoff]
+|   +-- Raw-trimmed MP4 only [settled]
+|   +-- Export preset and successful-playback checks [engineering + later review]
 |
 +-- Baseline: 5 to 10 minute recordings [settled]
     +-- Around 30 minutes editing own recording; around 60 minutes someone else's
-    +-- Readiness and editing-time target [needs agreement after engine sample]
+    +-- Usable transcript waiting-time target [Round 3, Q3]
     +-- Source preservation, undo and original-project recovery
 
 After those answers
@@ -165,7 +172,24 @@ He confirmed the complete AI-managed journey. He did not separately settle wheth
 3. What reaches the next editor: clean MP4, editable timeline with originals, or both? Recommendation: MP4 first, while preserving originals and the editable Stich project.
 4. May audio leave the Mac for transcription, potentially with separate cost? Recommendation: evaluate a short representative sample and keep engine selection explicit.
 
-Round 2 questions were sent together. Answers are pending. Recommendations are not user decisions.
+### Round 2 answer record
+
+Osiris requires a free tool and no paid third-party service. Open-source projects or custom tools may use this Mac's resources. This rules out cloud transcription and silent cloud fallback. Codex remains the user's external agent; Stich is not adding its own billed model service or claiming the external agent works offline.
+
+The next editor receives only the raw-trimmed MP4 export. Editable Premiere/Resolve interchange is therefore excluded from the first workflow. Stich should still retain its editable project and original recording for later corrections.
+
+Speech is mostly English, with Hinglish and Hindi sentences. These are English/Hindi speech and code-switching support requirements; the Hindi writing system still needs an explicit display preference.
+
+Both AI and people choose and perform cuts. Osiris expects the complete workflow to work through his AI, while he or any editor can do the same work manually. His stated product principle is a human application made agent-operable, following Canvas and Feedback. Do not make manual editing a limited fallback or invent an AI-only project model.
+
+### Round 3 frontier
+
+1. Meaning of a broad instruction such as "trim this video". Recommendation: a conservative pass over long pauses, false starts and repeated takes, preserving complete thoughts; content shortening requires a more specific instruction.
+2. Hindi writing-system default. Recommendation: Roman letters by default with an optional Hindi-script display.
+3. Acceptable wait for the first usable transcript of a 10-minute recording. Suggested target to test: within five minutes, with reliable cut boundaries. This is not a measured capability.
+4. How correction and cut timing are adjusted. Recommendation: separate text-only correction and a nearby play/trim control, with the full timeline remaining available.
+
+Round 3 questions were sent together. Answers are pending. Recommendations are not user decisions.
 
 ## Transcript-editing product model
 
@@ -185,6 +209,18 @@ Transcript structure must preserve source identity, word identities, original ti
 Technical checks must cover a word used twice, a clip split after transcription, corrected text, deleted punctuation, a pause without spoken words, a trim extended beyond a selected word and undo after the user adjusts an AI cut. Recognition success alone is insufficient: cut boundaries must sound right when auditioned.
 
 The first scope includes project lifecycle, the main recording, transcript selection, synchronized cuts, precise trim adjustment, playback, save and handoff. Creative finishing, automatic B-roll, music selection, fancy effects and collaboration are later. Existing manual timeline functionality can be reused without expanding the new implementation scope.
+
+## Free local processing and human control
+
+Recognition must run on this Mac with a license-compatible open-source runtime and model. Runtime and model licenses are checked independently before distribution. Initial model download can need a network connection; recognition of the recording must not upload audio. A missing model should give a useful install/readiness state, not switch to a paid cloud engine.
+
+Current source supports `auto`, `openai`, `whisper_cpp` and `funasr` as engine preferences. The private version must enforce local recognition for this workflow rather than trust `auto` availability order. Existing cloud transcription/TTS and visual-service code does not become part of the new workflow merely because it exists upstream.
+
+Whisper.cpp is an existing local candidate, with source support for a macOS Metal build. The existing downloadable Base model is not yet proven adequate for Osiris's English/Hinglish cuts. Measure local candidates on a representative sample for recognition, word-boundary error, run time and memory. Do not select a model on name or claimed quality alone. Release inference resources after a run so editing does not compete with a permanently loaded model.
+
+For every included action, document its human control, tool input, committed result, undo behavior and recovery behavior. Examples include selecting words and cutting them, correcting transcript text, adjusting a cut, restoring material, saving and exporting. Browser tool wrappers and server MCP wrappers are adapters for the same operation. Neither can write an independent project state.
+
+The user's requirement keeps the full editor available during agent work. ADR 0065 currently auto-enters the lightweight agent view once at work-session start. The browser version needs an explicit private-product decision for that layout behavior while retaining the ADR's separation of layout, work session and activity. Starting agent work must not unexpectedly remove the requested full timeline.
 
 ## Engineering questions we will answer ourselves
 
@@ -226,12 +262,16 @@ These are proposed checks, not passed acceptance results. The interview may chan
 | Topic | Status | Recommendation or next evidence |
 | --- | --- | --- |
 | First workflow | Settled | Transcript-driven trimming of the main spoken recording. |
-| Editing autonomy | Round 2, Q1 | Distinguish choosing cuts from carrying out commands. |
-| Languages and writing system | Round 2, Q2 | Establish the representative recognition/timing fixture. |
+| Who chooses cuts | Settled | Both humans and AI; same application operations and edit history. |
+| Default AI trimming policy | Round 3, Q1 | Define the behavior of a broad instruction before implementing a default pass. |
+| Speech support | Settled | English, Hindi and Hinglish code-switching, mostly English. |
+| Hindi writing system | Round 3, Q2 | Roman default versus Hindi-script default and display options. |
 | Editorial quality | Partially defined | Precise and adjustable cuts; rejected examples remain useful later. |
 | Journey completeness | Settled | Include project management, import, play, edit, save and handoff. |
-| Handoff format | Round 2, Q3 | Determines whether editor-specific interchange is included now. |
-| Transcription locality | Round 2, Q4 | Audio privacy, quality, waiting time and separate cost. |
+| Handoff format | Settled | Raw-trimmed MP4; retain Stich project and originals locally. |
+| Transcription locality and cost | Settled | Local open-source processing; no paid/cloud recognition dependency. |
+| Usable-transcript waiting time | Round 3, Q3 | Agree on a target, then measure recognition and timing quality together. |
+| Correction and timing controls | Round 3, Q4 | Separate transcript correction from footage changes. |
 | Keep native runtime for first browser version | Proposed | Test reuse cost and measured memory. |
 | WebMCP plus existing server MCP | Proposed | Use common operations; decide session ownership and discovery. |
 | Browser preview transport | Unproven | Compare compatible proxy decoding against a native transport only if needed. |
