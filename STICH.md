@@ -50,3 +50,7 @@ The packaging gates check the FFmpeg licenses/source materials and the Stich ski
 Open Stich from Applications or Spotlight. Use the stich MCP connection for Stich projects and weftcut for the official editor. Do not open the same project in both apps simultaneously. A new Codex chat may be needed to load a newly registered MCP connection.
 
 No official preferences, credentials, recent projects or active timeline are copied into Stich. Import files or create a new project when ready. This change does not alter video-editing behavior.
+
+## Next product plan
+
+[Stich inside Codex](docs/plans/stich-in-codex/README.md) is the documented proposal for a full browser editor, local transcript trimming and shared human/agent tools. Planning branch: `codex/stich-in-codex-plan`. It is not implemented in the current Mac package.

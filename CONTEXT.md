@@ -927,3 +927,13 @@ duration, error and actual history IDs. Reverted describes an edit's current
 effect, independently of whether its call completed or failed. The bounded
 activity stream retains running calls and does not restore from disk.
 _Avoid_: diagnostic log entry, history entry, permanent transcript
+
+**Transcript occurrence**:
+A particular appearance of recorded words in a placed clip. Reusing the same
+recorded sentence produces distinct occurrences that can be edited separately.
+_Avoid_: source word (the word in the original recording)
+
+**Roman Hindi**:
+Hindi speech written in Roman letters, preserving the spoken Hindi rather than
+translating its meaning into English.
+_Avoid_: English translation

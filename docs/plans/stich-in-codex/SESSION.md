@@ -1,6 +1,8 @@
 # Stich inside Codex: design session
 
-Status: interviewing. Product direction is recorded; architecture and implementation remain proposals.
+Status: interview complete for the first workflow. The implementation plan is ready for review; architecture recommendations require feasibility evidence and implementation has not started.
+
+Start with [the completed plan](README.md). This file preserves the interview history; earlier round recommendations are superseded by the final answer record below.
 
 Session date: 5 October 2026, Asia/Kolkata.
 Inspected source: `75276948`, private Stich branch based on WeftCut 0.3.0.
@@ -28,14 +30,19 @@ The aspiration that AI can do the work 10 to 20 times better is a hypothesis to 
 | First editing workflow | Import the main recording and trim by editing its transcription, like Osiris's described Premiere workflow | Transcript editing is the first product outcome. General creative finishing is later. |
 | Cut control | Removing words trims the video; trim controls can shorten a cut or restore a little footage | Text selection and precise timeline adjustments must remain synchronized and reversible. |
 | Project management | AI can open/create/start projects and manage/move project folders | Include project lifecycle tools. Define folder scope, identity and media-reference behavior before implementation. |
-| Journey completeness | Yes to the whole journey | Plan opening/import, playback, transcript edits, save and output handoff. The handoff format is still a question. |
+| Journey completeness | Yes to the whole journey | Plan opening/import, playback, transcript edits, save and output handoff. The handoff is raw-trimmed MP4, settled in Round 2. |
 | Next person in the workflow | Another video editor receives the trimmed video and finishes editing | Optimize the first version for a useful rough-cut handoff. Do not add automatic graphics, music or captions to this scope. |
 | Product cost and processing | A free tool using this Mac's resources and open-source projects | No paid transcription service, API requirement, metered processing or cloud fallback. Local recognition is mandatory. |
 | Output handoff | Only MP4 exports, a raw trimmed file | Editor-specific timeline interchange is outside the first workflow. Preserve the editable Stich project and originals locally. |
-| Speech support | Mostly English; also Hinglish and Hindi sentences | Support English and Hindi, including switching languages inside one recording. Hindi writing-system preferences are a separate decision. |
+| Speech support | Mostly English; also Hinglish and Hindi sentences | Support English and Hindi, including switching languages inside one recording. Hindi appears in Roman letters, settled in Round 3. |
 | Human and agent relationship | A human application with tools added; both can choose and perform cuts | All agent-supported editing actions must have useful human controls. The main workflow should also be fully available to the agent. |
 
-These are user decisions. The technology choices below are recommendations pending feasibility evidence and discussion.
+| Editorial process | Decide in each agent conversation; tools also work manually | Build capabilities, not a compulsory automatic trimming recipe. |
+| Hindi writing system | Hindi in English/Roman letters, meaning Hinglish | Romanize Hindi locally without translating it; retain source anchors. |
+| Transcript wait | About ten minutes for a ten-minute recording | Recommend real-time factor ≤1, including all steps to a usable transcript; benchmark it. |
+| Correction and timing | Spelling correction separate from timing; nearby play/trim accepted | Correct text changes spelling only; Cut/Adjust changes footage. |
+
+These are user decisions. Technology choices are recommendations pending feasibility evidence. The user's request to document the completed solution authorizes this plan, not runtime implementation.
 
 ## What the finished experience could look like
 
@@ -117,40 +124,30 @@ Export should become a runtime-owned job using the current compositor and native
 
 File operations need a scoped local interface. Do not expose every IPC channel or arbitrary filesystem path over HTTP. Media uses asset identities, bounded reads and range responses. Browser authentication should use its own scoped session rather than exposing the MCP bearer token. The exact launch/session mechanism is an engineering feasibility question.
 
-## Design tree and current frontier
+## Completed design tree
 
 ```text
-Confirmed: this Mac first + full timeline beside chat + tools for AI
-|
-+-- Transcript-driven trim of the main recording [settled]
-|   +-- Both humans and AI choose and perform removals [settled]
-|   +-- English, Hindi and code-switching support [settled]
-|   +-- Local recognition with no paid service [settled]
-|   +-- Hindi writing system [Round 3, Q2]
-|   +-- Meaning of a default AI trimming pass [Round 3, Q1]
-|   +-- Separate correction and timing controls [Round 3, Q4]
-|   +-- Word timing, text corrections, pauses and adjustable cut boundaries
-|
-+-- Codex handles the complete journey [settled]
-|   +-- Open/create, import, play, save, manage project folders
-|   +-- AI can choose edits within the requested task; manual controls remain equal
-|
-+-- Rough cut goes to another video editor [settled]
-|   +-- Raw-trimmed MP4 only [settled]
-|   +-- Export preset and successful-playback checks [engineering + later review]
-|
-+-- Baseline: 5 to 10 minute recordings [settled]
-    +-- Around 30 minutes editing own recording; around 60 minutes someone else's
-    +-- Usable transcript waiting-time target [Round 3, Q3]
-    +-- Source preservation, undo and original-project recovery
+This Mac first + full timeline beside Codex [settled]
++-- Human application with tools for the same capabilities [settled]
++-- First outcome: transcript-driven trim of a spoken recording [settled]
+|   +-- Human or agent chooses cuts; process decided in chat [settled]
+|   +-- Local English/Hindi code-switch recognition [settled]
+|   +-- Roman Hindi display without translation [settled]
+|   +-- Spelling correction separate from media/timing edits [settled]
+|   +-- Nearby audition/adjust/restore controls [settled]
+|   +-- Real-time factor <=1 target [recommended measure of accepted wait]
++-- Whole journey: projects/files/import/play/edit/save/export [settled]
++-- Handoff: raw-trimmed MP4; preserve editable project/originals [settled]
++-- VPS/team processing and creative finishing [deferred]
 
-After those answers
-+-- Compare architecture choices and measured feasibility
-+-- Settle contracts, delivery order and exclusions
-+-- Review complete solution with Osiris
-+-- Write implementation tickets and acceptance instructions
-+-- Begin implementation only after shared understanding is confirmed
+Engineering evidence required before delivery:
++-- Installed-browser playback and audio activation [ticket 01]
++-- Local mixed-language accuracy, Romanization, timing/speed [ticket 02]
++-- Runtime adapters, persistence, tools and export [tickets 03–09]
++-- Genuine Mac package and product acceptance [ticket 10]
 ```
+
+The product interview frontier is closed for this first scope. The engineering gates are our discovery work, not questions asking Osiris for repository facts. Further feedback can revise the plan before implementation.
 
 ### Round 1 questions
 
@@ -182,14 +179,18 @@ Speech is mostly English, with Hinglish and Hindi sentences. These are English/H
 
 Both AI and people choose and perform cuts. Osiris expects the complete workflow to work through his AI, while he or any editor can do the same work manually. His stated product principle is a human application made agent-operable, following Canvas and Feedback. Do not make manual editing a limited fallback or invent an AI-only project model.
 
-### Round 3 frontier
+### Round 3 questions (historical recommendations)
 
 1. Meaning of a broad instruction such as "trim this video". Recommendation: a conservative pass over long pauses, false starts and repeated takes, preserving complete thoughts; content shortening requires a more specific instruction.
 2. Hindi writing-system default. Recommendation: Roman letters by default with an optional Hindi-script display.
 3. Acceptable wait for the first usable transcript of a 10-minute recording. Suggested target to test: within five minutes, with reliable cut boundaries. This is not a measured capability.
 4. How correction and cut timing are adjusted. Recommendation: separate text-only correction and a nearby play/trim control, with the full timeline remaining available.
 
-Round 3 questions were sent together. Answers are pending. Recommendations are not user decisions.
+### Round 3 final answer record
+
+Osiris will decide editorial choices in each agent conversation. Stich provides capabilities usable by people and agents; it should not impose a fixed AI cutting process. Hindi should appear in Roman letters as Hinglish. A ten-minute usable transcript for a ten-minute recording is acceptable; we recommend expressing this as a measured real-time factor ≤1 target. Spelling correction must remain separate from timing/media changes. Nearby playback and trim controls are accepted.
+
+He requested the complete documented implementation plan and asked what changes in infrastructure, TypeScript and Rust. [README.md](README.md) answers this directly; [DELIVERY.md](DELIVERY.md) orders the work. Earlier recommendations for an automatic conservative pass, optional Hindi-script display or a five-minute wait are not first-version requirements.
 
 ## Transcript-editing product model
 
@@ -214,7 +215,7 @@ The first scope includes project lifecycle, the main recording, transcript selec
 
 Recognition must run on this Mac with a license-compatible open-source runtime and model. Runtime and model licenses are checked independently before distribution. Initial model download can need a network connection; recognition of the recording must not upload audio. A missing model should give a useful install/readiness state, not switch to a paid cloud engine.
 
-Current source supports `auto`, `openai`, `whisper_cpp` and `funasr` as engine preferences. The private version must enforce local recognition for this workflow rather than trust `auto` availability order. Existing cloud transcription/TTS and visual-service code does not become part of the new workflow merely because it exists upstream.
+Legacy preferences/comments include `auto`, `openai`, `whisper_cpp` and `funasr`, but the inspected native transcription resolver uses strict explicit selection. Older ADR 0036 fallback wording does not describe that current resolver. The private workflow must explicitly select a local engine and enforce that policy through all entry points, with no cloud fallback. Existing cloud transcription/TTS and visual-service code does not become part of the new workflow merely because it exists upstream.
 
 Whisper.cpp is an existing local candidate, with source support for a macOS Metal build. The existing downloadable Base model is not yet proven adequate for Osiris's English/Hinglish cuts. Measure local candidates on a representative sample for recognition, word-boundary error, run time and memory. Do not select a model on name or claimed quality alone. Release inference resources after a run so editing does not compete with a permanently loaded model.
 
@@ -255,7 +256,7 @@ These are source inspection and prototype tasks. Do not ask Osiris to supply rep
 - Assess word-boundary accuracy and perceived speech continuity on representative language samples.
 - Compare total waiting, editing and handoff time against Osiris's reported baseline; choose target numbers with him before implementation acceptance.
 
-These are proposed checks, not passed acceptance results. The interview may change them.
+These are planned checks, not passed acceptance results. The complete checks are in [DELIVERY.md](DELIVERY.md); product review can still revise the plan.
 
 ## Decisions that need discussion or later evidence
 
@@ -263,15 +264,15 @@ These are proposed checks, not passed acceptance results. The interview may chan
 | --- | --- | --- |
 | First workflow | Settled | Transcript-driven trimming of the main spoken recording. |
 | Who chooses cuts | Settled | Both humans and AI; same application operations and edit history. |
-| Default AI trimming policy | Round 3, Q1 | Define the behavior of a broad instruction before implementing a default pass. |
+| Editorial process | Settled | Decide in each agent chat; no compulsory application recipe. |
 | Speech support | Settled | English, Hindi and Hinglish code-switching, mostly English. |
-| Hindi writing system | Round 3, Q2 | Roman default versus Hindi-script default and display options. |
+| Hindi writing system | Settled | Roman Hindi display without English translation. |
 | Editorial quality | Partially defined | Precise and adjustable cuts; rejected examples remain useful later. |
 | Journey completeness | Settled | Include project management, import, play, edit, save and handoff. |
 | Handoff format | Settled | Raw-trimmed MP4; retain Stich project and originals locally. |
 | Transcription locality and cost | Settled | Local open-source processing; no paid/cloud recognition dependency. |
-| Usable-transcript waiting time | Round 3, Q3 | Agree on a target, then measure recognition and timing quality together. |
-| Correction and timing controls | Round 3, Q4 | Separate transcript correction from footage changes. |
+| Usable-transcript waiting time | Settled target | About recording duration; proposed real-time factor ≤1, subject to benchmark. |
+| Correction and timing controls | Settled | Spelling-only correction, separate cut/trim controls with nearby audition. |
 | Keep native runtime for first browser version | Proposed | Test reuse cost and measured memory. |
 | WebMCP plus existing server MCP | Proposed | Use common operations; decide session ownership and discovery. |
 | Browser preview transport | Unproven | Compare compatible proxy decoding against a native transport only if needed. |
@@ -290,6 +291,6 @@ These are proposed checks, not passed acceptance results. The interview may chan
 
 ## Next handoff
 
-Read this file and the user's latest answers before proposing implementation. Update the decision tree after every interview round. Record consequential technology trade-offs in an ADR only once settled. Put implementation issues under `.scratch/stich-in-codex/issues/` according to repository instructions, with dependencies and observable acceptance criteria.
+Read [README.md](README.md), the architecture/transcript/tool contracts and [DELIVERY.md](DELIVERY.md). Proposed ADRs 0094/0095 record the recommended boundaries; ADR 0093 records accepted product constraints. The spec and ten individual tickets are in `.scratch/stich-in-codex/`.
 
-Do not describe this draft as a finished implementation plan or a browser port that already works.
+This is the completed planning deliverable. No runtime source, installed app or video project was changed. Product review precedes implementation; engineering begins with the two feasibility gates once implementation is requested. Do not describe the browser port, local timing target or new export tool as already working.
